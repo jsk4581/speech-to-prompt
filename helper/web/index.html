@@ -1,13 +1,110 @@
 <!doctype html>
-<!-- STP popup — the View. WIP scaffold. -->
+<!--
+  Speech-To-Prompt — popup View.
+  Voice-first capture → editable XML draft → grill Q&A → confirm.
+  3 columns: What you said | XML to inject | Questions.
+
+  This file is the View only. Behavior (record, transcribe, grill, confirm)
+  is attached at runtime by app.js via the data-action / id hooks below.
+  Sample content renders the default state and is replaced live.
+-->
 <html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Speech-To-Prompt</title>
-  </head>
-  <body>
-    <!-- voice-first capture + editable XML draft + grill Q&A + confirm -->
-    <main id="app">STP popup — not yet implemented.</main>
-  </body>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Speech-To-Prompt</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<div id="app">
+
+  <header class="chrome">
+    <span class="dot accent"></span>
+    <span class="brand">Speech-To-Prompt</span>
+    <span class="stage" id="stage">· grill · review</span>
+    <span class="spacer"></span>
+    <button class="iconbtn" id="settings-btn" data-action="open-settings" type="button" title="Settings">⚙</button>
+  </header>
+
+  <main class="split">
+
+    <!-- COLUMN 1 : what you said -->
+    <section class="col said-col scroll" data-col="said">
+      <div class="colh">
+        <span class="label">What you said</span>
+        <span class="spacerflex"></span>
+        <button class="btn ghost rec" id="record-btn" data-action="record" type="button" aria-pressed="false"
+          style="min-height:28px;padding:0 10px;font-size:12px">
+          <span class="rdot"></span><span data-role="record-label">Re-record</span>
+        </button>
+      </div>
+      <div class="said" id="transcript" data-role="transcript">“uh… add Google OAuth to the login page. <b>if there's no account just create one automatically</b>. oh and if login fails <b>show the error in a toast</b>. hmm, cookies for the session should be fine I think.”</div>
+    </section>
+
+    <!-- COLUMN 2 : the XML to inject -->
+    <section class="col xml-col scroll" data-col="xml">
+      <div class="colh"><span class="label blue">XML to inject</span><span class="spacerflex"></span>
+        <span class="keyhint">editable</span></div>
+      <div class="legend">
+        <span><span class="sw" style="background:rgba(46,160,67,.4);border:1px solid #2EA043"></span>STP proposal</span>
+        <span><span class="sw" style="background:var(--surface);border:1px solid var(--border-2)"></span>what you said</span>
+        <span><span class="sw" style="background:rgba(215,186,125,.16);border:1px solid rgba(215,186,125,.55)"></span>needs you (question)</span>
+      </div>
+<pre class="xml" id="xml-editor" data-role="xml" contenteditable spellcheck="false"><span class="cmt">&lt;!-- drafted by STP · 3 questions open · grounded in your repo --&gt;</span>
+<span class="p">&lt;</span><span class="tag">task</span><span class="p">&gt;</span>
+  <span class="p">&lt;</span><span class="tag">role</span><span class="p">&gt;</span><span class="add">A senior full-stack engineer familiar with this codebase</span><span class="p">&lt;/</span><span class="tag">role</span><span class="p">&gt;</span>
+
+  <span class="p">&lt;</span><span class="tag">context</span><span class="p">&gt;</span>
+    Add Google OAuth to the login page. Auto-create an account
+    when none exists; show a toast on login failure.
+  <span class="p">&lt;/</span><span class="tag">context</span><span class="p">&gt;</span>
+
+  <span class="p">&lt;</span><span class="tag">references</span><span class="p">&gt;</span>  <span class="cmt">&lt;!-- found in your repo --&gt;</span>
+    <span class="add">src/pages/login.tsx:<span class="num">18</span>, src/auth/, src/components/Toast.tsx</span>
+  <span class="p">&lt;/</span><span class="tag">references</span><span class="p">&gt;</span>
+
+  <span class="p">&lt;</span><span class="tag">objective</span> <span class="attr">mode</span><span class="p">=</span><span class="qslot">"?"</span><span class="p">&gt;</span><span class="qslot"> implement vs. advise — set in question 1 </span><span class="p">&lt;/</span><span class="tag">objective</span><span class="p">&gt;</span>
+
+  <span class="p">&lt;</span><span class="tag">success_criteria</span><span class="p">&gt;</span>
+    <span class="add">On Google login: issue a session cookie · auto-create new accounts ·
+    show a toast on failure · login e2e passes</span>
+  <span class="p">&lt;/</span><span class="tag">success_criteria</span><span class="p">&gt;</span>
+
+  <span class="p">&lt;</span><span class="tag">guardrails</span><span class="p">&gt;</span>
+    <span class="add">Reuse the existing auth flow. No over-engineering, no hardcoded secrets.</span>
+  <span class="p">&lt;/</span><span class="tag">guardrails</span><span class="p">&gt;</span>
+<span class="p">&lt;/</span><span class="tag">task</span><span class="p">&gt;</span></pre>
+    </section>
+
+    <!-- COLUMN 3 : grill questions -->
+    <section class="col q-col scroll" data-col="questions">
+      <div class="colh"><span class="label">STP's questions <span id="q-count" style="color:var(--accent)">3</span></span></div>
+      <div id="questions">
+        <div class="qbox" data-q="1">
+          <div class="qtop"><span class="qmark">?</span><span class="qnum">Q1</span><span class="qtag">Implement vs. advise</span></div>
+          <div class="qtext">Should STP implement the Google OAuth directly, or just propose the approach?</div>
+          <div class="chips"><button class="chip sel" data-action="chip" type="button" aria-pressed="true">Implement it</button><button class="chip" data-action="chip" type="button" aria-pressed="false">Just advise</button></div>
+          <textarea class="ans" data-role="answer" rows="1" placeholder="or answer directly…"></textarea>
+        </div>
+        <div class="qbox" data-q="2">
+          <div class="qtop"><span class="qmark">?</span><span class="qnum">Q2</span><span class="qtag">Scope · files</span></div>
+          <div class="qtext">Create a new callback route, or add to the existing <code>src/api/auth/</code>?</div>
+          <div class="chips"><button class="chip" data-action="chip" type="button" aria-pressed="false">New route</button><button class="chip" data-action="chip" type="button" aria-pressed="false">Add to existing</button><button class="chip" data-action="chip" type="button" aria-pressed="false">You decide</button></div>
+        </div>
+        <div class="qbox" data-q="3">
+          <div class="qtop"><span class="qmark">?</span><span class="qnum">Q3</span><span class="qtag">Edge case</span></div>
+          <div class="qtext">If an account already exists with the same email, handle the conflict too?</div>
+          <div class="chips"><button class="chip" data-action="chip" type="button" aria-pressed="false">Include it</button><button class="chip" data-action="chip" type="button" aria-pressed="false">Skip</button></div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="footer">
+    <button class="btn primary" id="confirm-btn" data-action="confirm" type="button">Confirm · inject into session →</button>
+  </footer>
+
+</div>
+</body>
 </html>
