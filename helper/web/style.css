@@ -1,0 +1,112 @@
+@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css');
+
+/*
+  Speech-To-Prompt — popup View styles.
+  Theme: VS Code Dark (Dark Modern workbench + Dark+ syntax).
+  Layout: 3 columns — "What you said" | XML to inject | Questions.
+  Color semantics: proposal = green tint · question = blue ·
+  unresolved slot = gold (code only). UI accent is limited to blue.
+*/
+
+:root{
+  --bg:#1F1F1F; --chrome:#181818; --surface:#252526; --surface-2:#313131;
+  --editor:#1E1E1E; --xml-bg:#1A1A1A;
+  --border:#2B2B2B; --border-2:#3C3C3C;
+  --text-1:#CCCCCC; --text-2:#9D9D9D; --text-3:#6E6E6E;
+  --accent:#0078D4; --accent-hover:#026EC1;     /* button / focus / question */
+  --sel-bg:rgba(36,137,219,.22); --sel-border:#2488DB;
+  --link:#4DAAFC;
+  --code:#D4D4D4; --punct:#808080; --tag:#569CD6; --attr:#9CDCFE; --str:#CE9178;
+  --gold:#D7BA7D;          /* unresolved slot (code only) */
+  --green:#2EA043; --green-l:#b5cea8; --comment:#6A9955;
+  --radius:8px;
+  --ui:'Pretendard',-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
+  --mono:ui-monospace,Menlo,Monaco,Consolas,'Droid Sans Mono','Courier New',monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100%;height:100%;background:var(--bg)}
+body{font-family:var(--ui);color:var(--text-1);letter-spacing:-.01em;
+  -webkit-font-smoothing:antialiased;font-size:14px;overflow:hidden}
+#app{display:flex;flex-direction:column;height:100vh}
+.scroll{scrollbar-width:thin;scrollbar-color:#424242 transparent}
+.scroll::-webkit-scrollbar{width:14px;height:14px}
+.scroll::-webkit-scrollbar-thumb{background:#424242;border:4px solid transparent;background-clip:content-box;border-radius:10px}
+[contenteditable]:focus{outline:1px solid var(--accent);outline-offset:-1px;border-radius:2px}
+
+/* ── header (title bar) ── */
+.chrome{display:flex;align-items:center;gap:9px;padding:10px 14px;background:var(--chrome);border-bottom:1px solid var(--border)}
+.dot{width:8px;height:8px;border-radius:50%;flex:0 0 8px}
+.dot.accent{background:var(--accent)}
+.brand{font-size:13px;font-weight:600}
+.stage{font-size:12.5px;font-weight:500;color:var(--text-2)}
+.spacer{flex:1}
+.badge{font-size:9.5px;font-weight:700;padding:2px 7px;border-radius:6px;
+  background:rgba(215,186,125,.12);border:1px solid rgba(215,186,125,.3);color:var(--gold)}
+.iconbtn{width:27px;height:27px;border-radius:6px;border:none;background:transparent;
+  color:var(--text-3);cursor:pointer;font-size:14px}
+.iconbtn:hover{background:var(--surface-2);color:var(--text-1)}
+
+/* ── 3-column body ── */
+.split{flex:1;display:grid;grid-template-columns:minmax(230px,1fr) minmax(0,1.7fr) minmax(270px,1.2fr);min-height:0}
+.col{overflow:auto;padding:16px}
+.col + .col{border-left:1px solid var(--border)}
+.said-col{background:var(--chrome)}
+.xml-col{background:var(--editor)}
+.q-col{background:var(--chrome)}
+.colh{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.label{font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-2)}
+.label.blue{color:var(--attr)}
+.spacerflex{flex:1}
+
+/* what you said */
+.said{background:var(--surface);border:1px solid var(--border);border-radius:6px;
+  padding:11px 13px;font-size:13px;line-height:1.6;color:var(--text-2)}
+.said b{color:var(--text-1);font-weight:500}
+
+/* questions */
+.qbox{background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--accent);
+  border-radius:5px;padding:12px 13px;margin-bottom:10px}
+.qbox .qtop{display:flex;gap:8px;align-items:center;margin-bottom:7px}
+.qmark{color:var(--accent);font-weight:700;font-size:13px}
+.qnum{font-size:9.5px;font-weight:700;color:#fff;background:var(--accent);border-radius:5px;padding:1px 6px}
+.qtag{font-size:11px;color:var(--text-3)}
+.qtext{font-size:13px;color:var(--text-1);margin-bottom:10px;line-height:1.5}
+.chips{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:9px}
+.chip{font-size:12px;padding:6px 12px;border-radius:5px;border:1px solid var(--border-2);
+  background:var(--surface-2);color:var(--text-1);cursor:pointer}
+.chip:hover{border-color:var(--sel-border);background:rgba(36,137,219,.12);color:#fff}
+.chip.sel{border-color:var(--sel-border);background:var(--sel-bg);color:#fff}
+.ans{width:100%;background:var(--surface-2);border:1px solid var(--border-2);color:var(--text-1);
+  border-radius:5px;padding:8px 10px;font-family:inherit;font-size:12.5px;resize:vertical}
+.ans:focus{outline:none;border-color:var(--accent)}
+.ans::placeholder{color:var(--text-3)}
+code{font-family:var(--mono);font-size:.92em;color:var(--attr)}
+
+/* xml */
+.legend{display:flex;gap:13px;flex-wrap:wrap;font-size:10.5px;color:var(--text-3);margin-bottom:10px}
+.sw{width:10px;height:10px;border-radius:3px;display:inline-block;vertical-align:-1px;margin-right:5px}
+pre.xml{font-family:var(--mono);font-size:12.5px;line-height:1.7;white-space:pre-wrap;
+  color:var(--code);border:1px solid var(--border);border-radius:6px;background:var(--xml-bg);padding:14px 15px}
+.p{color:var(--punct)} .tag{color:var(--tag)} .attr{color:var(--attr)} .str{color:var(--str)}
+.add{background:rgba(46,160,67,.26);border-radius:3px;padding:0 2px}   /* proposal — green tint */
+.qslot{color:var(--gold);background:rgba(215,186,125,.13);border-bottom:1px dashed rgba(215,186,125,.55);border-radius:2px;padding:0 2px}
+.cmt{color:var(--comment)} .num{color:var(--green-l)}
+
+/* ── footer ── */
+.footer{border-top:1px solid var(--border);padding:11px 14px;background:var(--chrome);display:flex;justify-content:center}
+.actions{display:flex;align-items:center;gap:9px}
+.btn{min-height:42px;border-radius:var(--radius);cursor:pointer;font-family:var(--ui);
+  font-size:13px;font-weight:600;display:inline-flex;align-items:center;justify-content:center;gap:7px;
+  border:1px solid var(--border-2);background:var(--surface-2);color:var(--text-1);padding:0 16px}
+.btn.ghost{background:transparent;color:var(--text-2)}
+.btn.ghost:hover{color:var(--text-1);border-color:var(--text-3)}
+.btn.rec.on{color:#F85149;border-color:rgba(248,81,73,.4);background:rgba(248,81,73,.08)}
+.btn.primary{background:var(--accent);color:#fff;border-color:var(--accent);padding:0 40px}
+.btn.primary:hover{background:var(--accent-hover);border-color:var(--accent-hover)}
+.rdot{width:8px;height:8px;border-radius:50%;background:currentColor}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+.on .rdot{animation:pulse 1.3s ease-in-out infinite}
+.keyhint{font-size:10.5px;color:var(--text-3)}
+.kbd{font-family:var(--mono);font-size:10px;padding:2px 6px;border-radius:5px;
+  border:1px solid var(--border-2);background:var(--surface-2);color:var(--text-2)}
+@media (prefers-reduced-motion:reduce){.on .rdot{animation:none}}
