@@ -1,6 +1,6 @@
 ---
 name: voice
-description: Capture spoken intent and compile it into one structured XML coding-agent prompt. Launches a local voice popup, transcribes locally with Whisper, runs a repo-grounded grill loop, then injects the single confirmed XML.
+description: WIP scaffold for capturing spoken intent and compiling it into one structured XML coding-agent prompt. Not implemented yet.
 ---
 
 # /stp:voice — Speech → Prompt

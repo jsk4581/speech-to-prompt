@@ -3,12 +3,17 @@
 > Compile rough spoken developer intent into **one structured XML coding-agent prompt**.
 > **Speech → Prompt**, not just Speech → Text.
 
-**Status: 🚧 Work in progress — pre-release rewrite. Not yet installable.**
+**Status: P0 scaffold/spike — pre-release rewrite. Not yet installable.**
 
-STP is a [Claude Code](https://claude.com/claude-code) plugin that captures your
-voice, transcribes it locally (Whisper), and runs a repo-grounded "grill" loop
-to produce a single, confirmed, structured XML prompt for your coding agent —
-instead of pasting raw, rambling dictation.
+STP is planned as a [Claude Code](https://claude.com/claude-code) plugin that
+captures your voice, transcribes it locally (Whisper), and runs a repo-grounded
+"grill" loop to produce a single, confirmed, structured XML prompt for your
+coding agent — instead of pasting raw, rambling dictation.
+
+The current repository is only the public scaffold: plugin manifests, a WIP
+skill, an inert startup hook, documentation placeholders, and a TypeScript helper
+skeleton. It does not yet capture audio, run Whisper, open the popup, perform the
+grill loop, or hand off confirmed XML.
 
 ## Why
 
@@ -28,10 +33,11 @@ instead of pasting raw, rambling dictation.
 - **Cross-platform & vendor-neutral.**
 - **MIT, free forever** — a hobby project.
 
-## Install
+## P0 Validation
 
-Not yet available. Will be distributed via the Claude Code marketplace and via
-direct install.
+Install is not available yet. The next milestone is proving the scaffold with
+small P0 checks: plugin validation/install, helper launch, popup open, manual
+transcript editing, and confirmed XML handoff. See `docs/P0_SPIKES.md`.
 
 ## License
 

@@ -3,6 +3,9 @@
   "owner": {
     "name": "kio-vibe"
   },
+  "metadata": {
+    "description": "Public marketplace for kio-vibe Claude Code plugins."
+  },
   "description": "kio-vibe plugins for Claude Code.",
   "plugins": [
     {

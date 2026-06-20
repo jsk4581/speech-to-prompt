@@ -2,7 +2,7 @@
   "name": "stp-helper",
   "private": true,
   "version": "0.1.0",
-  "description": "STP local helper: 127.0.0.1 server, audio-capture orchestration, whisper.cpp subprocess, popup serving, and one-XML handoff.",
+  "description": "WIP scaffold for the STP local helper: future localhost server, popup, transcription, and one-XML handoff.",
   "type": "module",
   "engines": {
     "node": ">=18"
