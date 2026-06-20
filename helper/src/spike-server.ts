@@ -24,6 +24,7 @@ import { resolveWhisperPaths, assertWhisperReady, transcribe } from "./audio.js"
 
 const webDir = join(dirname(fileURLToPath(import.meta.url)), "..", "web");
 const language = process.env.STP_LANG ?? "auto";
+const threads = Number(process.env.STP_THREADS) || undefined;
 const samplePath = process.env.STP_SAMPLE_WAV;
 const transcriptDir = process.env.STP_TRANSCRIPT_DIR ?? join(tmpdir(), "stp-spike");
 
@@ -37,7 +38,7 @@ const transcribeRoute: RouteHandler = async (req, res) => {
   const tmp = join(tmpdir(), `stp-${Date.now()}-${Math.random().toString(36).slice(2)}.wav`);
   await writeFile(tmp, wav);
   try {
-    const result = await transcribe({ ...paths, wavPath: tmp, language });
+    const result = await transcribe({ ...paths, wavPath: tmp, language, threads });
     await appendFile(
       transcriptFile,
       JSON.stringify({ at: new Date().toISOString(), bytes: wav.length, ...result }) + "\n",
