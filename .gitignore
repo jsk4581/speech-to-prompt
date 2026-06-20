@@ -3,7 +3,7 @@
 # =============================================================================
 /CLAUDE.md
 /.claude/
-/.omc/
+.omc/
 *.pdf
 
 # (.claude-plugin/ is the PUBLIC plugin manifest — intentionally NOT ignored.)
@@ -46,3 +46,8 @@ Thumbs.db
 *.swp
 .idea/
 .vscode/
+
+# =============================================================================
+# Throwaway prototypes — kept next to the code, never shipped.
+# =============================================================================
+*.prototype.*
