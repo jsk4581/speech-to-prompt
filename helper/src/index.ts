@@ -1,12 +1,23 @@
-// STP local helper — entry point (WIP scaffold; nothing implemented yet).
+// STP local helper — entry point.
 //
-// Responsibilities:
-//   1. Start a localhost server bound to 127.0.0.1 (+ a session token, so other
-//      local processes can't inject).
-//   2. Open the default browser to the popup (helper/web) — this sidesteps the
-//      macOS terminal-TCC microphone trap.
-//   3. Receive captured audio → transcribe via a whisper.cpp subprocess.
-//   4. Bridge the grill loop between the popup (the View) and the coding agent.
-//   5. Hand off exactly one confirmed XML prompt.
+// Starts the localhost server (127.0.0.1 + session token) and serves the popup
+// View. Audio capture, prompt drafting, and the prompt handoff are layered on as
+// routes; this entry just brings the server up.
 
-export {};
+import { fileURLToPath } from "node:url";
+import { dirname, join } from "node:path";
+import { startServer } from "./server.js";
+
+const webDir = join(dirname(fileURLToPath(import.meta.url)), "..", "web");
+
+const server = await startServer({ webDir });
+// First stdout line = the machine-readable ready signal the launcher parses to
+// reach the helper (non-guessable port + session token, never world-readable).
+console.log(`STP_READY port=${server.port} token=${server.token}`);
+console.log(`STP helper listening at ${server.url}`);
+
+const shutdown = () => {
+  void server.close().finally(() => process.exit(0));
+};
+process.on("SIGINT", shutdown);
+process.on("SIGTERM", shutdown);

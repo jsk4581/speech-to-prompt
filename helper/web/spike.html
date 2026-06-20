@@ -1,0 +1,92 @@
+<!doctype html>
+<!-- STP audio spike page (throwaway). Verifies getUserMedia → 16k mono WAV →
+     whisper round-trip. The real popup View is index.html. -->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>STP — audio spike</title>
+    <style>
+      body { font: 15px/1.5 system-ui, sans-serif; max-width: 720px; margin: 2rem auto; padding: 0 1rem; }
+      button { font: inherit; padding: .5rem 1rem; margin-right: .5rem; cursor: pointer; }
+      #status { color: #555; margin: 1rem 0; }
+      #out { white-space: pre-wrap; background: #f5f5f5; padding: 1rem; border-radius: 6px; min-height: 3rem; }
+      .rec { color: #c00; font-weight: 600; }
+    </style>
+  </head>
+  <body>
+    <h1>STP audio spike</h1>
+    <p>Mic capture → 16&nbsp;kHz mono WAV (no ffmpeg) → whisper.cpp.</p>
+    <p>
+      <button id="record">● Record</button>
+      <button id="selftest" title="round-trips the bundled jfk sample through the full browser DSP path (no mic)">
+        Self-test (sample)
+      </button>
+    </p>
+    <div id="status">idle</div>
+    <h3>Transcript</h3>
+    <div id="out"></div>
+
+    <script type="module">
+      import { Recorder, encodeBlobToWav16kMono } from "./record.js";
+
+      const token = new URLSearchParams(location.search).get("t") ?? "";
+      const $ = (id) => document.getElementById(id);
+      const setStatus = (s, cls) => { $("status").textContent = s; $("status").className = cls ?? ""; };
+      const setOut = (s) => { $("out").textContent = s; };
+
+      async function postWav(wavBlob) {
+        setStatus("transcribing…");
+        const t0 = performance.now();
+        const resp = await fetch(`/transcribe?t=${encodeURIComponent(token)}`, {
+          method: "POST",
+          headers: { "content-type": "audio/wav" },
+          body: wavBlob,
+        });
+        if (!resp.ok) throw new Error(`server ${resp.status}: ${await resp.text()}`);
+        const data = await resp.json();
+        const rt = (performance.now() - t0).toFixed(0);
+        setStatus(`done in ${rt}ms (whisper ${data.elapsedMs?.toFixed?.(0)}ms, ${data.bytes}B, ${data.language || "?"})`);
+        setOut(data.text || "(empty)");
+        return data;
+      }
+
+      // --- live mic capture (push to talk) ---
+      const recorder = new Recorder();
+      $("record").addEventListener("click", async () => {
+        try {
+          if (!recorder.recording) {
+            await recorder.start();
+            $("record").textContent = "■ Stop";
+            setStatus("recording…", "rec");
+          } else {
+            $("record").textContent = "● Record";
+            setStatus("encoding…");
+            const { blob, durationMs } = await recorder.stop();
+            setStatus(`captured ${(durationMs / 1000).toFixed(1)}s (${blob.size}B wav) — uploading…`);
+            await postWav(blob);
+          }
+        } catch (err) {
+          setStatus(`error: ${err.message}`, "rec");
+          $("record").textContent = "● Record";
+        }
+      });
+
+      // --- no-mic self-test: fetch the sample wav, run it through the SAME
+      //     decode→downmix→resample→encode path record.js uses, then transcribe.
+      $("selftest").addEventListener("click", async () => {
+        try {
+          setStatus("self-test: fetching sample…");
+          const resp = await fetch(`/sample.wav?t=${encodeURIComponent(token)}`);
+          if (!resp.ok) throw new Error(`no sample (${resp.status}) — set STP_SAMPLE_WAV`);
+          const srcBlob = await resp.blob();
+          setStatus("self-test: re-encoding via Web Audio…");
+          const wav = await encodeBlobToWav16kMono(srcBlob);
+          await postWav(wav);
+        } catch (err) {
+          setStatus(`self-test error: ${err.message}`, "rec");
+        }
+      });
+    </script>
+  </body>
+</html>
