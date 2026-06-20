@@ -1,0 +1,17 @@
+{
+  "description": "STP plugin hooks.",
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/ensure-model.sh",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
+}

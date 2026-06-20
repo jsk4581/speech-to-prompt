@@ -1,0 +1,20 @@
+{
+  "name": "stp",
+  "displayName": "Speech-To-Prompt",
+  "version": "0.1.0",
+  "description": "Compile rough spoken developer intent into one structured XML coding-agent prompt. Speech → Prompt, not just Speech → Text.",
+  "author": {
+    "name": "kio-vibe"
+  },
+  "homepage": "https://github.com/kio-vibe/speech-to-prompt",
+  "repository": "https://github.com/kio-vibe/speech-to-prompt",
+  "license": "MIT",
+  "keywords": [
+    "voice",
+    "speech-to-text",
+    "prompt-engineering",
+    "whisper",
+    "coding-agent",
+    "xml"
+  ]
+}

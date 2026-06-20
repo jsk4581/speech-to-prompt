@@ -1,0 +1,14 @@
+{
+  "name": "kio-vibe",
+  "owner": {
+    "name": "kio-vibe"
+  },
+  "description": "kio-vibe plugins for Claude Code.",
+  "plugins": [
+    {
+      "name": "stp",
+      "source": "./",
+      "description": "Speech-To-Prompt — voice → structured XML coding-agent prompt."
+    }
+  ]
+}

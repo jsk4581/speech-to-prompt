@@ -1,0 +1,19 @@
+{
+  "name": "stp-helper",
+  "private": true,
+  "version": "0.1.0",
+  "description": "STP local helper: 127.0.0.1 server, audio-capture orchestration, whisper.cpp subprocess, popup serving, and one-XML handoff.",
+  "type": "module",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "start": "node dist/index.js"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.4.0"
+  }
+}
