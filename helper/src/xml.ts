@@ -54,7 +54,7 @@ export const OBJECTIVE_MODES = ["implement", "advise"] as const;
 export type ObjectiveMode = (typeof OBJECTIVE_MODES)[number];
 
 /**
- * All-caps emphasis words that over-trigger the model (CLAUDE.md §4 invariant).
+ * All-caps emphasis words that over-trigger the model (a generator invariant).
  * Matched as whole ALL-CAPS words only, so acronyms (XML, API, OAuth, HTTP) pass.
  */
 export const BANNED_EMPHASIS = [
@@ -91,7 +91,7 @@ export interface Section {
 /**
  * A grill question for the popup's third column. NOT part of the injected XML —
  * it travels alongside the draft (sidecar), because subagents cannot ask the
- * user directly (CLAUDE.md §6): they only produce the question text.
+ * user directly (subagents run autonomously): they only produce the question text.
  */
 export interface Question {
   /** Stable id, e.g. "q1"; a "question" segment references it via questionId. */
@@ -222,7 +222,7 @@ function lintPositive(name: SectionName, text: string): Violation[] {
   return [];
 }
 
-/** Reference material reads best near the top (CLAUDE.md §4). */
+/** Reference material reads best near the top (a generator invariant). */
 function lintOrder(sections: Section[]): Violation[] {
   const indexOf = (n: SectionName) => sections.findIndex((s) => s.name === n);
   const refs = indexOf("references");
