@@ -27,6 +27,13 @@ export interface TranscribeOptions extends WhisperPaths {
   language?: string;
   /** Worker threads; defaults to whisper.cpp's own default. */
   threads?: number;
+  /**
+   * Progress sink (0–100), called as whisper transcribes. When set, whisper is
+   * run with --print-progress and its stderr progress lines are parsed. Long
+   * recordings span many 30s windows, so this advances smoothly; a short clip
+   * jumps quickly. Used to drive the popup's transcription bar.
+   */
+  onProgress?: (percent: number) => void;
 }
 
 export interface TranscribeResult {
@@ -74,6 +81,7 @@ export function transcribe(opts: TranscribeOptions): Promise<TranscribeResult> {
     "-l", opts.language ?? "auto",
     "-nt", // no timestamps → clean text on stdout
   ];
+  if (opts.onProgress) args.push("-pp"); // print progress to stderr → the UI bar
   if (opts.threads) args.push("-t", String(opts.threads));
 
   return new Promise((resolve, reject) => {
@@ -81,10 +89,23 @@ export function transcribe(opts: TranscribeOptions): Promise<TranscribeResult> {
     const child = spawn(opts.bin, args, { stdio: ["ignore", "pipe", "pipe"] });
     let out = "";
     let err = "";
+    let lastPct = -1;
     child.stdout.setEncoding("utf8");
     child.stderr.setEncoding("utf8");
     child.stdout.on("data", (d) => (out += d));
-    child.stderr.on("data", (d) => (err += d));
+    child.stderr.on("data", (d) => {
+      err += d;
+      // whisper's --print-progress emits "… progress =  NN%" lines on stderr.
+      if (opts.onProgress) {
+        for (const m of d.matchAll(/progress\s*=\s*(\d+)\s*%/g)) {
+          const pct = Number(m[1]);
+          if (pct !== lastPct) {
+            lastPct = pct;
+            opts.onProgress(pct);
+          }
+        }
+      }
+    });
     child.on("error", (e) =>
       reject(new Error(`failed to spawn whisper (${opts.bin}): ${e.message}`)),
     );

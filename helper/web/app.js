@@ -28,6 +28,7 @@ const els = {
   qcount: $("#q-count"),
   recordBtn: $("#record-btn"),
   recordLabel: $("[data-role=record-label]"),
+  progress: $("#stt-progress"),
   confirmBtn: $("#confirm-btn"),
   settingsBtn: $("#settings-btn"),
 };
@@ -100,6 +101,10 @@ function connectEvents() {
     const data = safeJson(e.data);
     if (data.text != null) renderTranscript(data.text);
   });
+  es.addEventListener("transcribe-progress", (e) => {
+    const data = safeJson(e.data);
+    if (typeof data.pct === "number") setProgress(data.pct);
+  });
   es.addEventListener("round", (e) => {
     renderRound(safeJson(e.data));
   });
@@ -134,6 +139,23 @@ function safeJson(s) {
 
 function renderTranscript(text) {
   els.transcript.textContent = text || "(nothing captured)";
+}
+
+// Transcription progress bar (driven by SSE 'transcribe-progress').
+function showProgress() {
+  if (!els.progress) return;
+  els.progress.value = 0;
+  els.progress.hidden = false;
+}
+function setProgress(pct) {
+  if (!els.progress) return;
+  const v = Math.max(0, Math.min(100, pct));
+  els.progress.hidden = false;
+  els.progress.value = v;
+  setStage(`transcribing… ${Math.round(v)}%`);
+}
+function hideProgress() {
+  if (els.progress) els.progress.hidden = true;
 }
 
 /**
@@ -224,6 +246,7 @@ async function toggleRecord() {
     btn.setAttribute("aria-pressed", "false");
     if (els.recordLabel) els.recordLabel.textContent = "Re-record";
     setStage("transcribing…");
+    showProgress();
     const { blob } = await state.recorder.stop();
     const res = await api("/transcribe", {
       method: "POST",
@@ -231,12 +254,14 @@ async function toggleRecord() {
       body: blob,
     });
     const data = await res.json();
+    hideProgress();
     renderTranscript(data.text);
     setStage(data.language ? `captured · ${data.language}` : "captured");
   } catch (err) {
     btn.classList.remove("on");
     btn.setAttribute("aria-pressed", "false");
     if (els.recordLabel) els.recordLabel.textContent = "Re-record";
+    hideProgress();
     setStage("mic/transcribe error");
     renderTranscript(`⚠ ${err.message}`);
   }

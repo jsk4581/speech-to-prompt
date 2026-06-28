@@ -521,6 +521,9 @@ export async function startVoiceSession(opts: VoiceSessionOptions): Promise<Voic
           wavPath: tmp,
           language,
           threads: p.threads ?? threads,
+          // Stream whisper's progress to the popup so it can show a bar while a
+          // (possibly long) recording transcribes.
+          onProgress: (pct) => hub.broadcast("transcribe-progress", { pct }),
         });
         await appendFile(
           transcriptFile,
