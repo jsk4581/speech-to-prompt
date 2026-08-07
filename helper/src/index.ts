@@ -27,6 +27,8 @@ function emitBootstrap(p: BootstrapProgress): void {
 // the popup opens immediately and STP_READY is emitted right away.
 const session = await startVoiceSession({
   webDir,
+  // Runtime contract: STP_PORT pins the port (default 0 = ephemeral).
+  port: Number(process.env.STP_PORT) || 0,
   // Bridge the bootstrap's SttPlan (bin/model optional — absent in BYOK mode) to
   // the server's transcribe contract (bin/model present). In BYOK mode the server
   // short-circuits before touching them, so empty strings are never used.
