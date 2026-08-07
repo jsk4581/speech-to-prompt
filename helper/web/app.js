@@ -164,7 +164,15 @@ function hideProgress() {
  */
 function renderRound(round) {
   state.activeRound = round || {};
-  if (round.stage) setStage(round.stage);
+  // A new round always re-opens the loop — a prior confirm may have been
+  // rejected by the agent, so the button must come back.
+  if (els.confirmBtn) els.confirmBtn.disabled = false;
+  if (round.problem) {
+    setStage("confirm rejected — see note");
+    renderTranscript(`⚠ ${round.problem}`);
+  } else if (round.stage) {
+    setStage(round.stage);
+  }
   if (typeof round.transcript === "string") renderTranscript(round.transcript);
   if (typeof round.draftXml === "string") els.xml.textContent = round.draftXml;
   if (Array.isArray(round.questions)) renderQuestions(round.questions);
@@ -308,16 +316,18 @@ function onChipClick(chip) {
 
 function confirmAndInject() {
   const xml = els.xml.textContent ?? "";
-  setStage("confirming…");
+  // Delivery ≠ acceptance: the agent validates the confirmed XML and may reject
+  // it (unresolved questions, missing success criteria). Only say what we know —
+  // "sent" — and let the next SSE round re-open the loop if it was rejected.
+  setStage("confirm sent — waiting for validation…");
+  els.confirmBtn.disabled = true; // guard double-submit while the POST is in flight
   postJson("/confirm", { xml, answers: collectAnswers() })
-    .then(() => {
-      state.activeRound = null;
-      setStage("confirmed → injected");
-      els.confirmBtn.disabled = true;
-    })
     .catch((err) => {
       setStage("confirm failed");
       renderTranscript(`⚠ ${err.message}`);
+    })
+    .finally(() => {
+      els.confirmBtn.disabled = false;
     });
 }
 

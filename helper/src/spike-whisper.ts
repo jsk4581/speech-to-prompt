@@ -19,7 +19,8 @@ const language = process.argv[3] ?? "auto";
 
 const paths = resolveWhisperPaths();
 await assertWhisperReady(paths);
-const result = await transcribe({ ...paths, wavPath, language });
+const threads = Number(process.env.STP_THREADS) || undefined;
+const result = await transcribe({ ...paths, wavPath, language, threads });
 
 console.error(
   `[spike] ${result.elapsedMs.toFixed(0)}ms` +
