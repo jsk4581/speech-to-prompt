@@ -114,7 +114,7 @@ function connectEvents() {
   });
   // First-run model bootstrap progress; the helper pushes these while a
   // model is still downloading. Phase names come from the bootstrap (check ·
-  // download · extract · bench · select · error).
+  // download · extract · select · error).
   es.addEventListener("bootstrap", (e) => {
     const p = safeJson(e.data);
     if (p.phase === "select" || p.phase === "done") {
