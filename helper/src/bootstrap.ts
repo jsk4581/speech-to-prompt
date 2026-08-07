@@ -122,9 +122,12 @@ const MODELS: Record<Tier, ModelSpec> = {
     approxBytes: 200 * 1024 * 1024,
   },
   turbo: {
-    file: "ggml-large-v3-turbo-q5_0.bin",
-    url: `${HF_BASE}/ggml-large-v3-turbo-q5_0.bin`,
-    approxBytes: 580 * 1024 * 1024,
+    // q8_0 over q5_0: ~21% faster on CPU (int8 kernels beat q5 unpacking) with
+    // identical transcripts on the Korean/English bench, for +300MB download —
+    // the right trade for the machines that get the turbo tier at all.
+    file: "ggml-large-v3-turbo-q8_0.bin",
+    url: `${HF_BASE}/ggml-large-v3-turbo-q8_0.bin`,
+    approxBytes: 875 * 1024 * 1024,
   },
 };
 
@@ -194,14 +197,17 @@ const exists = (p: string) =>
 
 /**
  * Physical-ish core count for whisper's `-t`. os.cpus() reports logical cores;
- * whisper gains little past physical cores, so we halve when SMT is likely.
+ * whisper scales up to about the physical core count and goes flat into SMT
+ * (i9-14900KF bench: t16 7.8s → t24 6.8s → t32 6.6s on a 26s clip).
  */
 export function recommendedThreads(): number {
   const logical = Math.max(1, cpus().length);
-  // Heuristic: treat ≥8 logical as hyperthreaded and use half; never exceed 8
-  // (diminishing returns + leave headroom for the rest of the machine).
-  const physical = logical >= 8 ? Math.floor(logical / 2) : logical;
-  return Math.min(8, Math.max(1, physical));
+  // Hybrid Intel parts have logical = physical + P-cores (only P-cores SMT), so
+  // plain logical/2 undercounts them — `logical - 8` tracks physical better on
+  // big parts and still leaves the machine headroom. Cap 24: flat beyond.
+  const physical =
+    logical >= 16 ? logical - 8 : logical >= 8 ? Math.floor(logical / 2) : logical;
+  return Math.min(24, Math.max(1, physical));
 }
 
 /**
