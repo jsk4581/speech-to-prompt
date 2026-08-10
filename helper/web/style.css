@@ -63,6 +63,14 @@ body{font-family:var(--ui);color:var(--text-1);letter-spacing:-.01em;
   padding:11px 13px;font-size:13px;line-height:1.6;color:var(--text-2)}
 .said b{color:var(--text-1);font-weight:500}
 
+/* STT (transcription) progress bar — under the record row, above the transcript */
+.sttbar{appearance:none;-webkit-appearance:none;display:block;width:100%;height:3px;
+  border:none;border-radius:2px;background:var(--surface-2);overflow:hidden;margin-bottom:10px}
+.sttbar[hidden]{display:none}
+.sttbar::-webkit-progress-bar{background:var(--surface-2)}
+.sttbar::-webkit-progress-value{background:var(--accent);border-radius:2px;transition:width .2s ease}
+.sttbar::-moz-progress-bar{background:var(--accent)}
+
 /* questions */
 .qbox{background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--accent);
   border-radius:5px;padding:12px 13px;margin-bottom:10px}

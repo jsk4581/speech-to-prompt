@@ -28,6 +28,7 @@ const els = {
   qcount: $("#q-count"),
   recordBtn: $("#record-btn"),
   recordLabel: $("[data-role=record-label]"),
+  progress: $("#stt-progress"),
   confirmBtn: $("#confirm-btn"),
   settingsBtn: $("#settings-btn"),
 };
@@ -100,6 +101,10 @@ function connectEvents() {
     const data = safeJson(e.data);
     if (data.text != null) renderTranscript(data.text);
   });
+  es.addEventListener("transcribe-progress", (e) => {
+    const data = safeJson(e.data);
+    if (typeof data.pct === "number") setProgress(data.pct);
+  });
   es.addEventListener("round", (e) => {
     renderRound(safeJson(e.data));
   });
@@ -109,7 +114,7 @@ function connectEvents() {
   });
   // First-run model bootstrap progress; the helper pushes these while a
   // model is still downloading. Phase names come from the bootstrap (check ·
-  // download · extract · bench · select · error).
+  // download · extract · select · error).
   es.addEventListener("bootstrap", (e) => {
     const p = safeJson(e.data);
     if (p.phase === "select" || p.phase === "done") {
@@ -136,13 +141,38 @@ function renderTranscript(text) {
   els.transcript.textContent = text || "(nothing captured)";
 }
 
+// Transcription progress bar (driven by SSE 'transcribe-progress').
+function showProgress() {
+  if (!els.progress) return;
+  els.progress.value = 0;
+  els.progress.hidden = false;
+}
+function setProgress(pct) {
+  if (!els.progress) return;
+  const v = Math.max(0, Math.min(100, pct));
+  els.progress.hidden = false;
+  els.progress.value = v;
+  setStage(`transcribing… ${Math.round(v)}%`);
+}
+function hideProgress() {
+  if (els.progress) els.progress.hidden = true;
+}
+
 /**
  * Render a grill round pushed by the agent. Fields are all optional so the agent
  * can send partial updates: { stage?, transcript?, draftXml?, questions? }.
  */
 function renderRound(round) {
   state.activeRound = round || {};
-  if (round.stage) setStage(round.stage);
+  // A new round always re-opens the loop — a prior confirm may have been
+  // rejected by the agent, so the button must come back.
+  if (els.confirmBtn) els.confirmBtn.disabled = false;
+  if (round.problem) {
+    setStage("confirm rejected — see note");
+    renderTranscript(`⚠ ${round.problem}`);
+  } else if (round.stage) {
+    setStage(round.stage);
+  }
   if (typeof round.transcript === "string") renderTranscript(round.transcript);
   if (typeof round.draftXml === "string") els.xml.textContent = round.draftXml;
   if (Array.isArray(round.questions)) renderQuestions(round.questions);
@@ -224,6 +254,7 @@ async function toggleRecord() {
     btn.setAttribute("aria-pressed", "false");
     if (els.recordLabel) els.recordLabel.textContent = "Re-record";
     setStage("transcribing…");
+    showProgress();
     const { blob } = await state.recorder.stop();
     const res = await api("/transcribe", {
       method: "POST",
@@ -231,12 +262,14 @@ async function toggleRecord() {
       body: blob,
     });
     const data = await res.json();
+    hideProgress();
     renderTranscript(data.text);
     setStage(data.language ? `captured · ${data.language}` : "captured");
   } catch (err) {
     btn.classList.remove("on");
     btn.setAttribute("aria-pressed", "false");
     if (els.recordLabel) els.recordLabel.textContent = "Re-record";
+    hideProgress();
     setStage("mic/transcribe error");
     renderTranscript(`⚠ ${err.message}`);
   }
@@ -283,16 +316,18 @@ function onChipClick(chip) {
 
 function confirmAndInject() {
   const xml = els.xml.textContent ?? "";
-  setStage("confirming…");
+  // Delivery ≠ acceptance: the agent validates the confirmed XML and may reject
+  // it (unresolved questions, missing success criteria). Only say what we know —
+  // "sent" — and let the next SSE round re-open the loop if it was rejected.
+  setStage("confirm sent — waiting for validation…");
+  els.confirmBtn.disabled = true; // guard double-submit while the POST is in flight
   postJson("/confirm", { xml, answers: collectAnswers() })
-    .then(() => {
-      state.activeRound = null;
-      setStage("confirmed → injected");
-      els.confirmBtn.disabled = true;
-    })
     .catch((err) => {
       setStage("confirm failed");
       renderTranscript(`⚠ ${err.message}`);
+    })
+    .finally(() => {
+      els.confirmBtn.disabled = false;
     });
 }
 

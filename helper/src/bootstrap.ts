@@ -8,11 +8,12 @@
 //      prebuilt (D6); on macOS (no prebuilt CLI) fall back to a PATH probe.
 //   3. Ensure a GGML model exists — download from Hugging Face (D7), with
 //      progress / resume / disk-space / redirect handling (D4).
-//   4. Pick a model tier that fits the machine (Mac=turbo, laptop=small,
-//      weak=base) and confirm it with a quick sample bench.
-//   5. If local transcription is unrealistic, surface BYOK cloud STT as the
-//      recommended path — E only defines that branch + its contract; the key
-//      storage and provider UI land later.
+//   4. Recommend a model tier from cheap machine signals (Mac=turbo,
+//      laptop=small, weak=base). The pick stays with the user: STP_STT_TIER
+//      overrides now, the popup settings will later. No auto-benching.
+//   5. If no local binary is available (e.g. macOS without brew), surface BYOK
+//      cloud STT as the recommended path — E only defines that branch + its
+//      contract; the key storage and provider UI land later.
 //
 // The result feeds audio.ts via STP_WHISPER_BIN / STP_WHISPER_MODEL (the env
 // contract resolveWhisperPaths() already reads), so nothing downstream changes.
@@ -27,7 +28,6 @@ import {
   access,
   chmod,
   mkdir,
-  mkdtemp,
   readdir,
   readFile,
   rename,
@@ -39,9 +39,8 @@ import {
 import { constants } from "node:fs";
 import { get as httpsGet } from "node:https";
 import { get as httpGet } from "node:http";
-import { tmpdir, homedir, cpus, totalmem } from "node:os";
+import { homedir, cpus, totalmem } from "node:os";
 import { join, dirname, delimiter } from "node:path";
-import { WHISPER_SAMPLE_RATE, WHISPER_CHANNELS, transcribe } from "./audio.js";
 
 // ───────────────────────────── contract types ──────────────────────────────
 
@@ -82,20 +81,17 @@ export interface SttPlan {
   reason: string;
 }
 
-/** Progress events for the download/bench UX (D4). Rendered by the caller. */
+/** Progress events for the download UX (D4). Rendered by the caller. */
 export type BootstrapProgress =
   | { kind: "check"; message: string }
   | { kind: "download"; target: "binary" | "model"; name: string; received: number; total: number }
   | { kind: "extract"; target: "binary"; name: string }
-  | { kind: "bench"; tier: Tier }
   | { kind: "select"; mode: SttMode; tier?: Tier; reason: string }
   | { kind: "error"; message: string };
 
 export interface EnsureOptions {
   /** Progress sink; the helper logs to stdout now, the popup via SSE later. */
   onProgress?: (p: BootstrapProgress) => void;
-  /** Re-run the sample bench even if a prior selection is cached. */
-  rebench?: boolean;
 }
 
 // ─────────────────────────────── catalogs ──────────────────────────────────
@@ -126,9 +122,12 @@ const MODELS: Record<Tier, ModelSpec> = {
     approxBytes: 200 * 1024 * 1024,
   },
   turbo: {
-    file: "ggml-large-v3-turbo-q5_0.bin",
-    url: `${HF_BASE}/ggml-large-v3-turbo-q5_0.bin`,
-    approxBytes: 580 * 1024 * 1024,
+    // q8_0 over q5_0: ~21% faster on CPU (int8 kernels beat q5 unpacking) with
+    // identical transcripts on the Korean/English bench, for +300MB download —
+    // the right trade for the machines that get the turbo tier at all.
+    file: "ggml-large-v3-turbo-q8_0.bin",
+    url: `${HF_BASE}/ggml-large-v3-turbo-q8_0.bin`,
+    approxBytes: 875 * 1024 * 1024,
   },
 };
 
@@ -172,8 +171,6 @@ interface StpConfig {
     mode: SttMode;
     tier?: Tier;
     threads?: number;
-    byokRecommended?: boolean;
-    benchRtFactor?: number;
   };
 }
 
@@ -200,14 +197,17 @@ const exists = (p: string) =>
 
 /**
  * Physical-ish core count for whisper's `-t`. os.cpus() reports logical cores;
- * whisper gains little past physical cores, so we halve when SMT is likely.
+ * whisper scales up to about the physical core count and goes flat into SMT
+ * (i9-14900KF bench: t16 7.8s → t24 6.8s → t32 6.6s on a 26s clip).
  */
 export function recommendedThreads(): number {
   const logical = Math.max(1, cpus().length);
-  // Heuristic: treat ≥8 logical as hyperthreaded and use half; never exceed 8
-  // (diminishing returns + leave headroom for the rest of the machine).
-  const physical = logical >= 8 ? Math.floor(logical / 2) : logical;
-  return Math.min(8, Math.max(1, physical));
+  // Hybrid Intel parts have logical = physical + P-cores (only P-cores SMT), so
+  // plain logical/2 undercounts them — `logical - 8` tracks physical better on
+  // big parts and still leaves the machine headroom. Cap 24: flat beyond.
+  const physical =
+    logical >= 16 ? logical - 8 : logical >= 8 ? Math.floor(logical / 2) : logical;
+  return Math.min(24, Math.max(1, physical));
 }
 
 /**
@@ -216,10 +216,7 @@ export function recommendedThreads(): number {
  * uncertain — the benched sweet spot; the Korean-quality A/B may nudge this.
  */
 export function heuristicTier(): Tier {
-  if (process.env.STP_STT_TIER) {
-    const t = process.env.STP_STT_TIER as Tier;
-    if (t === "base" || t === "small" || t === "turbo") return t;
-  }
+  if (isTier(process.env.STP_STT_TIER)) return process.env.STP_STT_TIER;
   const logical = cpus().length;
   const gibTotal = totalmem() / 1024 ** 3;
   // Apple Silicon: Metal makes turbo viable. (darwin x64 = old Intel Mac → no.)
@@ -230,7 +227,8 @@ export function heuristicTier(): Tier {
   return "base";
 }
 
-const SMALLER: Partial<Record<Tier, Tier>> = { turbo: "small", small: "base" };
+const isTier = (t: string | undefined): t is Tier =>
+  t === "base" || t === "small" || t === "turbo";
 
 // ───────────────────────────── downloading ─────────────────────────────────
 
@@ -470,49 +468,6 @@ async function ensureModel(tier: Tier, onProgress?: EnsureOptions["onProgress"])
   return dest;
 }
 
-// ─────────────────────────────── benching ──────────────────────────────────
-
-const BENCH_SECONDS = 11; // ≈ one 30s whisper window, comparable to the jfk bench.
-/** A transcript no slower than ~1.4× the audio length is "realtime enough". */
-const RT_OK = 0.7;
-
-/** Write a tiny silent 16 kHz mono WAV — content-independent compute proxy. */
-async function writeSampleWav(): Promise<string> {
-  const samples = WHISPER_SAMPLE_RATE * BENCH_SECONDS;
-  const dataBytes = samples * WHISPER_CHANNELS * 2;
-  const buf = Buffer.alloc(44 + dataBytes);
-  buf.write("RIFF", 0);
-  buf.writeUInt32LE(36 + dataBytes, 4);
-  buf.write("WAVE", 8);
-  buf.write("fmt ", 12);
-  buf.writeUInt32LE(16, 16);
-  buf.writeUInt16LE(1, 20); // PCM
-  buf.writeUInt16LE(WHISPER_CHANNELS, 22);
-  buf.writeUInt32LE(WHISPER_SAMPLE_RATE, 24);
-  buf.writeUInt32LE(WHISPER_SAMPLE_RATE * WHISPER_CHANNELS * 2, 28);
-  buf.writeUInt16LE(WHISPER_CHANNELS * 2, 32);
-  buf.writeUInt16LE(16, 34);
-  buf.write("data", 36);
-  buf.writeUInt32LE(dataBytes, 40);
-  // Sample data left as zeros (silence): whisper still runs a full forward pass
-  // per 30s window, so wall time reflects model compute cost on this machine.
-  const dir = await mkdtemp(join(tmpdir(), "stp-bench-"));
-  const wavPath = join(dir, "bench.wav");
-  await writeFile(wavPath, buf);
-  return wavPath;
-}
-
-/** Transcribe the sample once; return realtime factor (audioSec / elapsedSec). */
-async function benchTier(bin: string, model: string, threads: number): Promise<number> {
-  const wavPath = await writeSampleWav();
-  try {
-    const { elapsedMs } = await transcribe({ bin, model, wavPath, language: "auto", threads });
-    return BENCH_SECONDS / (elapsedMs / 1000);
-  } finally {
-    await rm(join(wavPath, ".."), { recursive: true, force: true }).catch(() => {});
-  }
-}
-
 // ──────────────────────────── BYOK branch ──────────────────────────────────
 
 /** A BYOK plan — local skipped or judged unrealistic. M6 wires keys + calls. */
@@ -532,7 +487,7 @@ let cached: Promise<SttPlan> | null = null;
 
 /**
  * Make speech-to-text ready and return the plan. Memoized: the first call does
- * the work (download/bench), later callers await the same result. Sets
+ * the work (download), later callers await the same result. Sets
  * STP_WHISPER_BIN / STP_WHISPER_MODEL so audio.ts picks the selection up.
  */
 export function ensureSttReady(opts: EnsureOptions = {}): Promise<SttPlan> {
@@ -570,45 +525,28 @@ async function run(opts: EnsureOptions): Promise<SttPlan> {
     return plan;
   }
 
-  // 2. Reuse a prior selection unless re-benching.
+  // 2. Tier: explicit override > saved choice > recommended default. The pick
+  //    is the user's — STP only recommends from cheap machine signals; there is
+  //    no auto-benching or silent tier switching.
   const cfg = await loadConfig();
-  let tier = cfg?.stt.tier ?? heuristicTier();
-  const skipBench = !opts.rebench && cfg?.stt.benchRtFactor != null && (await exists(join(modelsDir(), MODELS[tier].file)));
+  const envTier = process.env.STP_STT_TIER;
+  const tier: Tier = isTier(envTier) ? envTier : (cfg?.stt.tier ?? heuristicTier());
 
   // 3. Model for the chosen tier.
-  let model = await ensureModel(tier, onProgress);
+  const model = await ensureModel(tier, onProgress);
 
-  // 4. Confirm the tier with a sample bench (step down if too slow).
-  let rtFactor = cfg?.stt.benchRtFactor ?? 0;
-  let byokRecommended = cfg?.stt.byokRecommended ?? false;
-  if (!skipBench) {
-    onProgress?.({ kind: "bench", tier });
-    rtFactor = await benchTier(bin, model, threads);
-    // One step-down if the pick is slower than realtime and a lighter tier exists.
-    const lighter = SMALLER[tier];
-    if (rtFactor < RT_OK && lighter && !process.env.STP_STT_TIER) {
-      tier = lighter;
-      model = await ensureModel(tier, onProgress);
-      onProgress?.({ kind: "bench", tier });
-      rtFactor = await benchTier(bin, model, threads);
-    }
-    // Even the lightest local tier can't keep up → recommend BYOK (keep local
-    // as a working fallback; the user decides in the popup).
-    if (rtFactor < RT_OK && !SMALLER[tier]) byokRecommended = true;
-  }
-
-  await saveConfig({
-    version: 1,
-    stt: { mode: "local", tier, threads, byokRecommended, benchRtFactor: rtFactor },
-  });
+  await saveConfig({ version: 1, stt: { mode: "local", tier, threads } });
 
   // Publish to the env contract audio.ts reads.
   process.env.STP_WHISPER_BIN = bin;
   process.env.STP_WHISPER_MODEL = model;
 
-  const reason = byokRecommended
-    ? `Local '${tier}' is slower than realtime here (~${rtFactor.toFixed(2)}× RT) — BYOK cloud STT recommended for snappier transcription.`
-    : `Local whisper '${tier}' selected (~${rtFactor.toFixed(2)}× realtime, -t ${threads}).`;
+  const via = isTier(envTier)
+    ? "user-selected"
+    : cfg?.stt.tier
+      ? "saved choice"
+      : "recommended for this machine";
+  const reason = `Local whisper '${tier}' (${via}, -t ${threads}).`;
   onProgress?.({ kind: "select", mode: "local", tier, reason });
 
   return {
@@ -617,7 +555,7 @@ async function run(opts: EnsureOptions): Promise<SttPlan> {
     model,
     tier,
     threads,
-    byokRecommended,
+    byokRecommended: false,
     byokProviders: BYOK_STT_PROVIDERS,
     reason,
   };
@@ -669,7 +607,7 @@ if (fileURLToPath(import.meta.url) === argv[1]) {
       console.log(JSON.stringify(s, null, 2));
     });
   } else {
-    ensureSttReady({ onProgress: renderProgress, rebench: argv.includes("--rebench") }).then(
+    ensureSttReady({ onProgress: renderProgress }).then(
       (plan) => console.log(JSON.stringify(plan, null, 2)),
       (e) => {
         stderr.write(`\n[stp] bootstrap failed: ${e instanceof Error ? e.message : e}\n`);
