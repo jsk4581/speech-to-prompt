@@ -10,7 +10,23 @@ progress.
 STP is a [Claude Code](https://claude.com/claude-code) plugin that captures your
 voice, transcribes it locally (Whisper), and runs a repo-grounded "grill" loop
 to produce a single, confirmed, structured XML prompt for your coding agent —
-instead of pasting raw, rambling dictation.
+instead of pasting raw, rambling dictation. That goes for new tasks and for the
+fifteen corrections you owe your agent after reviewing its work.
+
+## When to reach for it
+
+- **Kicking off a task.** Your plan is half-formed and talking it out is how
+  you think. Ramble; the grill loop asks about what you left out.
+- **Dumping a vague idea.** Speak out of order, contradict yourself, circle
+  back — structuring it is STP's job, not yours. You review the result, not
+  your own transcript.
+- **A pile of corrections.** You reviewed the agent's work and have fifteen
+  nitpicks. Talk through them once; repo-grounding pins "that button, the one
+  in the header" to real files and symbols, and they come out as one organized
+  change order.
+- **Getting truly aligned with your agent.** The question loop surfaces the
+  assumptions you didn't know you were making — and the XML you confirm is a
+  contract you both agreed to, not a guess the agent ran with.
 
 ## Why
 
@@ -18,7 +34,9 @@ instead of pasting raw, rambling dictation.
 - **Raw transcription isn't usable** — speech carries filler and unstructured phrasing.
 - **Refining inside your agent session wastes context** — so STP refines outside it
   and injects only the final, confirmed prompt.
-- **Claude prefers structured (XML) input** — so STP turns voice straight into XML.
+- **Claude prefers structured (XML) input** — so STP turns voice straight into
+  XML. The confirmed XML doubles as a statement of work you and your agent
+  actually agreed on.
 
 ## Principles
 
@@ -35,12 +53,12 @@ instead of pasting raw, rambling dictation.
 Inside Claude Code:
 
 ```
-/plugin marketplace add kio-vibe/speech-to-prompt
-/plugin install stp@kio-vibe
+/plugin marketplace add jsk4581/speech-to-prompt
+/plugin install stp@jsk4581
 ```
 
-(or from a terminal: `claude plugin marketplace add kio-vibe/speech-to-prompt`
-then `claude plugin install stp@kio-vibe`.)
+(or from a terminal: `claude plugin marketplace add jsk4581/speech-to-prompt`
+then `claude plugin install stp@jsk4581`.)
 
 **Requirements:** [Claude Code](https://claude.com/claude-code) and Node.js ≥ 18
 (with npm).
