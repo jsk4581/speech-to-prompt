@@ -85,7 +85,12 @@ function takeLaunchToken() {
 async function establishSession(token) {
   // The first call carries the token as a Bearer header; the response sets the
   // SameSite=Strict cookie that authenticates the SSE stream + later POSTs.
-  await api("/session", { method: "POST", headers: { authorization: `Bearer ${token}` } });
+  // With no token (a reload after the fragment was scrubbed) the call rides on
+  // that cookie instead — the server accepts either.
+  await api("/session", {
+    method: "POST",
+    headers: token ? { authorization: `Bearer ${token}` } : {},
+  });
 }
 
 // ── SSE push channel ─────────────────────────────────────────────────────────
@@ -297,8 +302,24 @@ function pushAnswers() {
   if (!state.activeRound) return; // sample questions in the default View are local
   clearTimeout(state.answerTimer);
   state.answerTimer = setTimeout(() => {
-    postJson("/answer", { answers: collectAnswers() }).catch(() => setStage("answer failed"));
+    postJson("/answer", { answers: collectAnswers() })
+      .then(() => {
+        // Keep the loop visibly alive: the agent is folding the answers in and
+        // will push the next round; nothing here is done silently.
+        setStage("answers sent — folding them in…");
+        markAnswered();
+      })
+      .catch(() => setStage("answer failed"));
   }, 250);
+}
+
+/** Dim question cards that already carry an answer, so progress is visible. */
+function markAnswered() {
+  for (const box of els.questions.querySelectorAll(".qbox")) {
+    const answered =
+      box.querySelector(".chip.sel") || box.querySelector("[data-role=answer]")?.value.trim();
+    box.classList.toggle("answered", Boolean(answered));
+  }
 }
 
 function onChipClick(chip) {
@@ -378,15 +399,11 @@ async function main() {
   if (els.recordLabel) els.recordLabel.textContent = "Record";
   setStage("connecting…");
   const token = takeLaunchToken();
-  if (!token) {
-    setStage("no session token — open via the helper");
-    return;
-  }
   try {
-    await establishSession(token);
+    await establishSession(token); // token, or the cookie from a prior visit
     connectEvents();
   } catch (err) {
-    setStage("session setup failed");
+    setStage(token ? "session setup failed" : "no session token — open via the helper");
     renderTranscript(`⚠ ${err.message}`);
   }
 }
