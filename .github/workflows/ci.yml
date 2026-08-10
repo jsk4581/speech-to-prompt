@@ -28,4 +28,6 @@ jobs:
         working-directory: helper
         run: npm run build
       - name: Unit tests
-        run: node --test tests/
+        # Explicit file list: node 22 no longer scans a bare directory argument,
+        # and Windows runners don't glob for native commands.
+        run: node --test tests/xml.test.mjs tests/grill.test.mjs
