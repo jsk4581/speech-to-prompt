@@ -75,6 +75,7 @@ body{font-family:var(--ui);color:var(--text-1);letter-spacing:-.01em;
 .qbox{background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--accent);
   border-radius:5px;padding:12px 13px;margin-bottom:10px}
 .qbox .qtop{display:flex;gap:8px;align-items:center;margin-bottom:7px}
+.qbox.answered{opacity:.45;transition:opacity .25s ease}
 .qmark{color:var(--accent);font-weight:700;font-size:13px}
 .qnum{font-size:9.5px;font-weight:700;color:#fff;background:var(--accent);border-radius:5px;padding:1px 6px}
 .qtag{font-size:11px;color:var(--text-3)}

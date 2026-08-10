@@ -280,6 +280,15 @@ export class SseHub {
     this.onChange?.();
   }
 
+  /** Push a named event to one just-attached client (state replay on connect). */
+  send(res: ServerResponse, event: string, data: unknown): void {
+    try {
+      res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+    } catch {
+      /* client already gone — its close handler cleans up */
+    }
+  }
+
   /** Push a named event with a JSON payload to every connected popup. */
   broadcast(event: string, data: unknown): void {
     const frame = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
@@ -443,6 +452,14 @@ export async function startVoiceSession(opts: VoiceSessionOptions): Promise<Voic
   // the outcome is queued and delivered on the next GET /agent/poll.
   let pending: ServerResponse | null = null;
   let queued: AgentOutcome | null = null;
+  // Last full round (has draftXml) — replayed to a popup that (re)connects, so a
+  // dropped SSE or a fresh tab doesn't lose the state published while it was away.
+  // Notice-only rounds (e.g. a confirm rejection) are broadcast but not replayed.
+  let currentRound: unknown = null;
+  const publishRound = (round: unknown) => {
+    if (round && typeof round === "object" && "draftXml" in round) currentRound = round;
+    hub.broadcast("round", round);
+  };
   let lastActivity = Date.now();
   const touch = () => {
     lastActivity = Date.now();
@@ -494,6 +511,7 @@ export async function startVoiceSession(opts: VoiceSessionOptions): Promise<Voic
     "GET /events": (_req, res) => {
       hub.attach(res);
       hub.broadcast("ready", { whisper: plan ? "ready" : "absent", stage: "capture" });
+      if (currentRound) hub.send(res, "round", currentRound);
     },
 
     // popup → helper: audio in, transcript out. Also appended to transcript.jsonl
@@ -540,7 +558,7 @@ export async function startVoiceSession(opts: VoiceSessionOptions): Promise<Voic
     "POST /agent/round": async (req, res) => {
       touch();
       const round = await readJson(req);
-      hub.broadcast("round", round);
+      publishRound(round);
       sendJson(res, 200, { ok: true, clients: hub.size });
     },
 
@@ -631,7 +649,7 @@ export async function startVoiceSession(opts: VoiceSessionOptions): Promise<Voic
     token: server.token,
     url: server.url,
     hub,
-    pushRound: (round) => hub.broadcast("round", round),
+    pushRound: publishRound,
     close: () => shutdown(false),
   };
 }

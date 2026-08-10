@@ -41,6 +41,9 @@ export interface RoundPayload {
   draftXml: string;
   /** Note: the popup reads `chips`, while the schema's Question uses `choices`. */
   questions: { id: string; tag: string; text: string; chips: string[] }[];
+  /** What the user said — so a popup that (re)connects mid-loop shows the real
+   *  words instead of the static sample text. */
+  transcript?: string;
 }
 
 /** What the long-poll yields straight from the server (raw popup events). */
@@ -253,6 +256,23 @@ async function handleOutcome(out: RawOutcome, finalOut: string | undefined): Pro
   return { status: "confirmed", ok: true, finalOut: dest };
 }
 
+/**
+ * Finalize the raw outcome and emit it — and when a confirm was rejected, push
+ * the reason back to the popup (notice-only round: no draftXml, so the server
+ * won't replay it) so the user sees why instead of a silently re-opened loop.
+ */
+async function finishRound(c: Conn, raw: RawOutcome, finalOut: string | undefined): Promise<void> {
+  const out = await handleOutcome(raw, finalOut);
+  if (out.status === "confirmed" && !out.ok) {
+    await request(c, "POST", "/agent/round", {
+      body: JSON.stringify({ stage: "confirm rejected", problem: out.problem }),
+    }).catch(() => {
+      /* best-effort notice — the agent still reports the problem */
+    });
+  }
+  emit(out);
+}
+
 // ─────────────────────────────── subcommands ───────────────────────────────
 
 /** Print exactly one compact JSON line — the only thing on stdout the agent reads. */
@@ -292,16 +312,22 @@ async function cmdRound(): Promise<void> {
   if (!draftPath) throw new Error("round: --draft <GrillDraft json> is required");
   const draft = JSON.parse(await readFile(draftPath, "utf8")) as GrillDraft;
   const payload = roundPayload(draft, flag("stage"));
+  try {
+    const latest = latestTranscript(await readFile(transcriptFile(), "utf8"));
+    if (latest) payload.transcript = latest.text;
+  } catch {
+    /* no transcript yet — the popup keeps whatever it shows */
+  }
   const posted = await request(c, "POST", "/agent/round", { body: JSON.stringify(payload) });
   if (posted.status !== 200) throw new Error(`round: POST /agent/round → ${posted.status} ${posted.text}`);
   const capS = Number(flag("poll-cap") ?? DEFAULT_CAP_S);
-  emit(await handleOutcome(await pollLoop(c, capS), flag("final-out")));
+  await finishRound(c, await pollLoop(c, capS), flag("final-out"));
 }
 
 async function cmdPoll(): Promise<void> {
   const c = conn();
   const capS = Number(flag("poll-cap") ?? DEFAULT_CAP_S);
-  emit(await handleOutcome(await pollLoop(c, capS), flag("final-out")));
+  await finishRound(c, await pollLoop(c, capS), flag("final-out"));
 }
 
 async function main(): Promise<void> {
