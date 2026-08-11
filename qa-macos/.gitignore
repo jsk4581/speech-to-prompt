@@ -1,0 +1,5 @@
+# 파생물 — build-cases.py 가 fixtures/ 로부터 결정적으로 다시 만듭니다.
+cases/
+
+# 받아오는 모델 (0.9MB) — README의 링크 참조.
+ggml-silero-*.bin
