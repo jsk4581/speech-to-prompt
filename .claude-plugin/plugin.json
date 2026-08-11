@@ -1,7 +1,7 @@
 {
   "name": "stp",
   "displayName": "Speech-To-Prompt",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "description": "Compile rough spoken developer intent into one structured XML coding-agent prompt. Speech → Prompt, not just Speech → Text.",
   "author": {
     "name": "jsk4581"

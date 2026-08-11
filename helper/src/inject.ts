@@ -26,8 +26,9 @@ async function main(): Promise<void> {
 
   const xml = await readFile(inPath, "utf8");
   // Re-parse and re-assert the invariants — defense in depth even though the
-  // grill bridge already normalized this file.
-  assertInjectable(parseXml(xml));
+  // grill bridge already normalized this file. --lenient mirrors the bridge's
+  // pure-dictation gate (simple mode + grill off).
+  assertInjectable(parseXml(xml), { lenient: argv.includes("--lenient") });
 
   // stdout = the injected prompt. Nothing else goes here.
   process.stdout.write(xml.trim() + "\n");

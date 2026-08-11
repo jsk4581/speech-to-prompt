@@ -92,12 +92,18 @@ The task that spawned you also names a grill setting. Default to `on`.
 - **`on`** — the normal loop: ask the few expensive questions via the
   `questions` array.
 - **`off`** — the user opted out of questions. Return an **empty `questions`
-  array** and no `question` segments. Resolve everything by best inference
-  instead — including the two gate-required fields: pick the objective `mode`
-  the transcript implies (when genuinely unclear, `"implement"`), and write
-  the most reasonable `success_criteria` yourself. This overrides simple
-  mode's ask-for-gate-fields exception: with grill off, even a simple draft
-  infers those two fields rather than asking.
+  array** and no `question` segments. What replaces the questions depends on
+  the draft mode:
+  - In **`max`**, resolve everything by best inference — including the two
+    gate-required fields: pick the objective `mode` the transcript implies
+    (when genuinely unclear, `"implement"`), and write the most reasonable
+    `success_criteria` yourself.
+  - In **`simple`**, this is the **pure-dictation contract**: cleanup and
+    placement only, zero inference. If the user never stated
+    implement-vs-advise, omit `attrs.mode` entirely (no `"?"`); if they never
+    stated success criteria, omit that section. The confirm gate is relaxed
+    for this combination, so an absent mode or success_criteria is fine —
+    never invent either.
 
 ## Draft mode — max vs. simple
 
@@ -110,11 +116,12 @@ given.
 - **`simple`** — a faithful structuring pass, not an authoring pass. Clean the
   user's speech (drop filler, fix word breaks) and place *only what they said*
   into the fitting sections as `said` segments. Invent nothing: no proposed
-  guardrails, no invented references or steps the user didn't imply. Two
-  structural needs still apply because the confirm gate enforces them — the
-  objective `mode` and `success_criteria`: take them from the user's words when
-  present, otherwise ask for them (those are the only questions a simple draft
-  should carry).
+  guardrails, no invented references or steps the user didn't imply. With
+  grill **on**, two structural needs still apply because the confirm gate
+  enforces them — the objective `mode` and `success_criteria`: take them from
+  the user's words when present, otherwise ask for them (those are the only
+  questions a simple draft should carry). With grill **off**, see the Grill
+  section above: omit them instead.
 
 ## How to draft in `max` — blend, weighted toward proposing
 

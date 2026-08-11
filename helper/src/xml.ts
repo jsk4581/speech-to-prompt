@@ -264,18 +264,33 @@ export function lintDraft(draft: GrillDraft): Violation[] {
  *   - <success_criteria> present (a definition of done + self-check).
  * Ordering/positive-phrasing warnings do not block (generate auto-fixes order).
  */
-export function assertInjectable(draft: GrillDraft): void {
+export interface InjectableOptions {
+  /**
+   * Pure-dictation contract (simple mode + grill off): the prompt carries only
+   * what the user actually said, so the two normally-required fields —
+   * a resolved <objective mode> and <success_criteria> — may be absent.
+   * Everything else (lint errors, unresolved question slots) still applies.
+   */
+  lenient?: boolean;
+}
+
+export function assertInjectable(draft: GrillDraft, opts: InjectableOptions = {}): void {
   const problems = lintDraft(draft)
     .filter((v) => v.severity === "error")
     .map((v) => v.message);
 
   const objective = getSection(draft, "objective");
   const mode = objective?.attrs?.mode;
-  if (!objective) {
-    problems.push("missing <objective> — state implement vs. advise");
-  } else if (!mode || mode === "?") {
-    problems.push('<objective mode> is unresolved — set "implement" or "advise"');
-  } else if (!OBJECTIVE_MODES.includes(mode as ObjectiveMode)) {
+  if (!opts.lenient) {
+    if (!objective) {
+      problems.push("missing <objective> — state implement vs. advise");
+    } else if (!mode || mode === "?") {
+      problems.push('<objective mode> is unresolved — set "implement" or "advise"');
+    } else if (!OBJECTIVE_MODES.includes(mode as ObjectiveMode)) {
+      problems.push(`invalid <objective mode="${mode}"> — use "implement" or "advise"`);
+    }
+  } else if (mode && mode !== "?" && !OBJECTIVE_MODES.includes(mode as ObjectiveMode)) {
+    // Lenient still rejects a *stated but invalid* mode.
     problems.push(`invalid <objective mode="${mode}"> — use "implement" or "advise"`);
   }
 
@@ -284,7 +299,7 @@ export function assertInjectable(draft: GrillDraft): void {
   }
 
   const success = getSection(draft, "success_criteria");
-  if (!success || sectionText(success).trim() === "") {
+  if (!opts.lenient && (!success || sectionText(success).trim() === "")) {
     problems.push("missing <success_criteria> — define done and how to self-verify");
   }
 
@@ -300,6 +315,12 @@ export interface GenerateOptions {
   indent?: string;
   /** When true, assertInjectable(draft) runs first and throws if not ready. */
   injectionReady?: boolean;
+  /**
+   * Pure-dictation contract (see InjectableOptions): relaxes the gate and,
+   * when the objective mode was never stated, omits the mode attribute
+   * instead of emitting a "?" placeholder into the final document.
+   */
+  lenient?: boolean;
 }
 
 function renderInner(segments: Segment[]): string {
@@ -316,7 +337,7 @@ function renderInner(segments: Segment[]): string {
  */
 export function generateXml(draft: GrillDraft, opts: GenerateOptions = {}): string {
   const indent = opts.indent ?? "  ";
-  if (opts.injectionReady) assertInjectable(draft);
+  if (opts.injectionReady) assertInjectable(draft, { lenient: opts.lenient });
 
   // First occurrence of each section wins (defensive against duplicates).
   const bySection = new Map<SectionName, Section>();
@@ -332,7 +353,10 @@ export function generateXml(draft: GrillDraft, opts: GenerateOptions = {}): stri
 
     let attrs = "";
     if (name === "objective") {
-      attrs = ` mode="${escapeAttr(section.attrs?.mode ?? "?")}"`;
+      const mode = section.attrs?.mode;
+      // Lenient (pure dictation): a never-stated mode is simply omitted rather
+      // than shipping a "?" placeholder into the injected document.
+      attrs = opts.lenient && (!mode || mode === "?") ? "" : ` mode="${escapeAttr(mode ?? "?")}"`;
     } else if (section.attrs) {
       for (const [k, v] of Object.entries(section.attrs)) attrs += ` ${k}="${escapeAttr(v)}"`;
     }

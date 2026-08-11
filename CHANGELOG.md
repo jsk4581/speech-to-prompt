@@ -6,6 +6,14 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.1.9] — 2026-08-11
+
+### Changed
+- Simple mode + grill off is now a true pure-dictation contract: STP cleans
+  and structures only what you said, inventing nothing — the confirm gate
+  relaxes for exactly this combination, so an unstated objective mode or
+  missing success criteria no longer gets filled in (or rejected).
+
 ## [0.1.8] — 2026-08-11
 
 ### Added

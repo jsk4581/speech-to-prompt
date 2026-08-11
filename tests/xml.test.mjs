@@ -198,6 +198,32 @@ test("assertInjectable requires success_criteria", () => {
   assert.throws(() => assertInjectable(draft), /success_criteria/);
 });
 
+test("assertInjectable lenient accepts a bare dictation draft (simple + grill off)", () => {
+  const draft = { sections: [{ name: "context", segments: [seg("just cleaned speech")] }], questions: [] };
+  assert.throws(() => assertInjectable(draft));
+  assert.doesNotThrow(() => assertInjectable(draft, { lenient: true }));
+});
+
+test("assertInjectable lenient still rejects question slots and invalid stated modes", () => {
+  const qdraft = {
+    sections: [{ name: "context", segments: [{ text: "x", source: "question", questionId: "q1" }] }],
+    questions: [],
+  };
+  assert.throws(() => assertInjectable(qdraft, { lenient: true }), /question slots/);
+  const badMode = {
+    sections: [{ name: "objective", attrs: { mode: "nonsense" }, segments: [seg("do")] }],
+    questions: [],
+  };
+  assert.throws(() => assertInjectable(badMode, { lenient: true }), /invalid/);
+});
+
+test("generateXml lenient omits an unstated objective mode instead of emitting '?'", () => {
+  const draft = { sections: [{ name: "objective", segments: [seg("tidy this up")] }], questions: [] };
+  const xml = generateXml(draft, { injectionReady: true, lenient: true });
+  assert.ok(xml.includes("<objective>"), xml);
+  assert.ok(!xml.includes('mode="?"'), xml);
+});
+
 // ── parse (tolerant) ────────────────────────────────────────────────────────
 
 test("parseXml throws when there is no <task> root", () => {

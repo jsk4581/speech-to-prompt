@@ -92,6 +92,7 @@ export function roundPayload(draft: GrillDraft, stage?: string): RoundPayload {
  */
 export function finalizeConfirmed(
   xml: string,
+  opts: { lenient?: boolean } = {},
 ): { ok: true; xml: string } | { ok: false; problem: string } {
   let draft: GrillDraft;
   try {
@@ -100,7 +101,7 @@ export function finalizeConfirmed(
     return { ok: false, problem: e instanceof Error ? e.message : String(e) };
   }
   try {
-    return { ok: true, xml: generateXml(draft, { injectionReady: true }) };
+    return { ok: true, xml: generateXml(draft, { injectionReady: true, lenient: opts.lenient }) };
   } catch (e) {
     return { ok: false, problem: e instanceof Error ? e.message : String(e) };
   }
@@ -252,11 +253,25 @@ async function pollLoop(c: Conn, capS: number): Promise<RawOutcome> {
   return { status: "timeout" };
 }
 
+/**
+ * Pure-dictation runs (simple mode + grill off, read from the transcript
+ * record) get the lenient gate: the two normally-required fields may be
+ * absent because nothing the user didn't say is ever added.
+ */
+async function isLenientRun(): Promise<boolean> {
+  try {
+    const latest = latestTranscript(await readFile(transcriptFile(), "utf8"));
+    return latest?.mode === "simple" && latest?.grill === "off";
+  } catch {
+    return false;
+  }
+}
+
 /** A confirmed outcome carries the user's (possibly edited) XML — finalize it. */
 async function handleOutcome(out: RawOutcome, finalOut: string | undefined): Promise<Outcome> {
   if (out.status !== "confirmed") return out;
   const raw = typeof out.xml === "string" ? out.xml : "";
-  const fin = finalizeConfirmed(raw);
+  const fin = finalizeConfirmed(raw, { lenient: await isLenientRun() });
   if (!fin.ok) return { status: "confirmed", ok: false, problem: fin.problem };
   const dest = finalOut ?? join(process.env.STP_TRANSCRIPT_DIR ?? tmpdir(), "final.xml");
   await writeFile(dest, fin.xml, "utf8");

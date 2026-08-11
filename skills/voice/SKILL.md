@@ -148,6 +148,10 @@ The model never decides the loop is done — only the user's **Confirm** ends it
 node "${CLAUDE_PLUGIN_ROOT}/helper/dist/inject.js" --in <RUN>/final.xml
 ```
 
+When step 2 reported `mode: "simple"` **and** `grill: "off"`, append
+`--lenient`: that run is a pure dictation-cleanup, so the gate accepts a
+document without an objective mode or success criteria.
+
 Its stdout is the single, validated `<task>` document — the confirmed work order.
 That is the only prompt content from this flow that enters the session. Proceed
 to carry it out (or hand it to the coding agent the user intends). If `inject.js`
