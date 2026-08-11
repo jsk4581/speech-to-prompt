@@ -52,5 +52,5 @@ Thumbs.db
 # =============================================================================
 *.prototype.*
 
-# demo render artifacts
-demo/_frames/
+# demo harness (kept local — only docs/demo.gif ships)
+demo/
