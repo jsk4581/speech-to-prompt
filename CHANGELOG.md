@@ -6,6 +6,13 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.1.8] — 2026-08-11
+
+### Added
+- Grill on/off toggle in the footer: off means STP asks no questions at all —
+  it best-guesses everything (including objective mode and success criteria)
+  and the popup goes straight to review-and-confirm.
+
 ## [0.1.7] — 2026-08-11
 
 ### Changed

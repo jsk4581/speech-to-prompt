@@ -87,10 +87,10 @@ STP_TRANSCRIPT_DIR=<RUN> node "${CLAUDE_PLUGIN_ROOT}/helper/dist/grill.js" \
 
 Use a generous Bash timeout (≈120s). On `{"ready":false}` the user is still
 recording — run it again. On `{"ready":true}` the transcript is in
-`<RUN>/transcript.txt`, and the JSON carries `mode` (`"max"` or `"simple"`) —
-the draft mode the user picked in the popup; note it for step 3. Do **not**
-read the transcript file into this conversation; the drafting subagent reads
-it directly.
+`<RUN>/transcript.txt`, and the JSON carries `mode` (`"max"` or `"simple"`)
+and `grill` (`"on"` or `"off"`) — the draft settings the user picked in the
+popup; note both for step 3. Do **not** read the transcript file into this
+conversation; the drafting subagent reads it directly.
 
 ### 3. Draft, in an isolated subagent
 
@@ -98,8 +98,9 @@ Spawn a subagent (Task tool, general-purpose) so the heavy drafting and
 repo-grounding stay out of this session. Give it this task:
 
 > Read `${CLAUDE_PLUGIN_ROOT}/helper/prompts/grill.md` and follow it as your
-> instructions. The draft mode is `<MODE>` (from step 2 — see grill.md "Draft
-> mode"). The transcript is at `<RUN>/transcript.txt`; the repository root
+> instructions. The draft mode is `<MODE>` and grill is `<GRILL>` (from step
+> 2 — see grill.md "Draft mode" and "Grill"). The transcript is at
+> `<RUN>/transcript.txt`; the repository root
 > is the current working directory — ground the draft in real files and symbols
 > (read-only). Produce the `GrillDraft` JSON exactly as `grill.md` specifies,
 > **write it to `<RUN>/draft.json`**, and reply with only a one-line summary:
@@ -117,7 +118,9 @@ STP_PORT=<P> STP_TOKEN=<T> STP_TRANSCRIPT_DIR=<RUN> \
   round --draft <RUN>/draft.json --final-out <RUN>/final.xml
 ```
 
-The popup now shows the draft XML and the questions. Read the one-line JSON
+The popup now shows the draft XML and the questions (with grill off the
+draft has none — the round is still published so the user reviews, edits,
+and confirms; the flow below is unchanged). Read the one-line JSON
 outcome and act on `status`:
 
 - **`answered`** — it carries `answers`. Spawn the subagent again: have it read

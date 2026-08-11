@@ -85,6 +85,20 @@ fence. It is the working draft plus the open questions. The shape, wrapped in an
   `text` in the user's language, optional `choices` for quick replies, and the
   section it `resolves`.
 
+## Grill — on vs. off
+
+The task that spawned you also names a grill setting. Default to `on`.
+
+- **`on`** — the normal loop: ask the few expensive questions via the
+  `questions` array.
+- **`off`** — the user opted out of questions. Return an **empty `questions`
+  array** and no `question` segments. Resolve everything by best inference
+  instead — including the two gate-required fields: pick the objective `mode`
+  the transcript implies (when genuinely unclear, `"implement"`), and write
+  the most reasonable `success_criteria` yourself. This overrides simple
+  mode's ask-for-gate-fields exception: with grill off, even a simple draft
+  infers those two fields rather than asking.
+
 ## Draft mode — max vs. simple
 
 The task that spawned you names a draft mode. Default to `max` when none is

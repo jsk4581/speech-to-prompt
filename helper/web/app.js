@@ -368,6 +368,15 @@ function setMode(btn) {
   postJson("/mode", { mode }).catch(() => setStage("mode change failed"));
 }
 
+/** Toggle the question loop; off = STP best-guesses instead of asking. */
+function toggleGrill(btn) {
+  const on = !btn.classList.contains("sel");
+  btn.classList.toggle("sel", on);
+  btn.setAttribute("aria-pressed", on ? "true" : "false");
+  btn.textContent = on ? "Grill on" : "Grill off";
+  postJson("/mode", { grill: on ? "on" : "off" }).catch(() => setStage("grill toggle failed"));
+}
+
 function cancelSession() {
   postJson("/cancel")
     .then(() => {
@@ -415,6 +424,9 @@ function wireEvents() {
         break;
       case "mode":
         setMode(actor);
+        break;
+      case "grill":
+        toggleGrill(actor);
         break;
       case "cancel":
         cancelSession();
