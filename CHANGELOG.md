@@ -6,6 +6,22 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.2.7] — 2026-08-11
+
+### Fixed
+- Spinners now match the work actually happening: the questions-pane spinner
+  runs only when grill is in play, and a mid-round settings flip spins only
+  the pane that setting regenerates (Enhance → XML pane, Grill → questions
+  pane) instead of both unconditionally.
+
+### Changed
+- Drafting model tiers: a plain default+grill-off pass drafts on Sonnet;
+  enhance mode or an active grill drafts on Opus.
+- The Default/Enhanced tabs are now a segmented control — the open tab fills
+  with the accent color instead of a subtle outline.
+- Cancelling shows its feedback right above the Cancel button rather than in
+  the far-away header.
+
 ## [0.2.6] — 2026-08-11
 
 ### Removed

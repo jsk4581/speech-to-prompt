@@ -95,7 +95,16 @@ conversation; the drafting subagent reads it directly.
 ### 3. Draft, in an isolated subagent
 
 Spawn a subagent (Task tool, general-purpose) so the heavy drafting and
-repo-grounding stay out of this session. Give it this task:
+repo-grounding stay out of this session. **Pick the subagent's model by the
+draft settings** — this applies to every drafting spawn (initial, answered,
+and settings redrafts):
+
+- mode `default` **and** grill `off` → the Sonnet model (a faithful
+  structuring pass; fast and cheap is right).
+- mode `enhance` **or** grill `on` → the Opus model (repo-grounded
+  refinement and question judgment warrant the heavier model).
+
+Give it this task:
 
 > Read `${CLAUDE_PLUGIN_ROOT}/helper/prompts/grill.md` and follow it as your
 > instructions. The draft mode is `<MODE>` and grill is `<GRILL>` (from step

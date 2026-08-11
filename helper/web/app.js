@@ -38,6 +38,7 @@ const els = {
   xmlHint: $("#xml-hint"),
   drafting: $("#drafting"),
   draftingQ: $("#drafting-q"),
+  cancelNote: $("#cancel-note"),
 };
 
 const state = {
@@ -133,7 +134,8 @@ function connectEvents() {
     const data = safeJson(e.data);
     if (data.text != null) {
       renderTranscript(data.text);
-      showDrafting(); // STT is done — the drafting LLM is working now
+      // STT is done — the drafting LLM works now; questions only if grill is on.
+      showDrafting({ xml: true, grill: Boolean(els.grillToggle?.checked) });
     }
   });
   es.addEventListener("transcribe-progress", (e) => {
@@ -199,12 +201,13 @@ function hideProgress() {
   els.progress.hidden = true;
 }
 
-// Circular spinners over the XML and questions panes while the drafting LLM
-// works (between the transcript landing and the first/next round arriving).
-function showDrafting() {
+// Circular spinners over the XML / questions panes while the drafting LLM
+// works. Each pane spins only when ITS content is actually being regenerated:
+// the XML pane for a (re)draft, the questions pane only when grill is in play.
+function showDrafting({ xml = true, grill = false } = {}) {
   if (state.stale) return;
-  if (els.drafting) els.drafting.hidden = false;
-  if (els.draftingQ) els.draftingQ.hidden = false;
+  if (els.drafting && xml) els.drafting.hidden = false;
+  if (els.draftingQ && grill) els.draftingQ.hidden = false;
 }
 function hideDrafting() {
   if (els.drafting) els.drafting.hidden = true;
@@ -365,7 +368,7 @@ async function toggleRecord() {
     const data = await res.json();
     hideProgress();
     renderTranscript(data.text);
-    showDrafting();
+    showDrafting({ xml: true, grill: Boolean(els.grillToggle?.checked) });
     setStage(data.language ? `captured · ${data.language} — drafting…` : "captured — drafting…");
   } catch (err) {
     btn.classList.remove("on");
@@ -438,7 +441,8 @@ function pushSettings(patch) {
   postJson("/mode", patch)
     .then(() => {
       if (state.activeRound) {
-        showDrafting();
+        // Spin only the pane the flipped setting regenerates.
+        showDrafting({ xml: "mode" in patch, grill: "grill" in patch });
         setStage("re-drafting with the new settings…");
       }
     })
@@ -460,16 +464,27 @@ function enterStaleMode() {
   renderTranscript("This tab belongs to an older run. Use the newest STP popup window.");
 }
 
+/** Inline feedback right above the Cancel button (the header is too far away). */
+function cancelNote(text) {
+  if (!els.cancelNote) return;
+  els.cancelNote.textContent = text;
+  els.cancelNote.hidden = false;
+}
+
 function cancelSession() {
   postJson("/cancel")
     .then(() => {
       hideDrafting();
-      setStage("cancelled — you can close this window");
+      setStage("cancelled");
+      cancelNote("Cancelled — you can close this window");
       state.activeRound = null;
       if (els.confirmBtn) els.confirmBtn.disabled = true;
       if (els.cancelBtn) els.cancelBtn.disabled = true;
     })
-    .catch(() => setStage("cancel failed"));
+    .catch(() => {
+      setStage("cancel failed");
+      cancelNote("Cancel failed — try again");
+    });
 }
 
 function confirmAndInject() {

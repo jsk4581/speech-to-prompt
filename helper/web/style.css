@@ -111,13 +111,15 @@ body{font-family:var(--ui);color:var(--text-1);letter-spacing:-.01em;
 @media (prefers-reduced-motion:reduce){.switch,.switch .swlabel,.switch .knob{transition:none}}
 .actions .sep{width:1px;height:22px;background:var(--border-2);margin:0 5px}
 
-/* XML pane tabs (Default | Enhanced) — shown only when an enhanced draft exists */
-.tabs{display:inline-flex;gap:2px;margin-left:6px}
+/* XML pane tabs (Default | Enhanced) — a segmented control, shown only when an
+   enhanced draft exists. The selected segment fills with the accent color. */
+.tabs{display:inline-flex;gap:0;margin-left:8px;padding:2px;border-radius:7px;
+  background:var(--surface);border:1px solid var(--border-2)}
 .tabs[hidden]{display:none}
-.tab{font-size:10.5px;padding:3px 10px;border-radius:5px;border:1px solid transparent;
-  background:transparent;color:var(--text-3);cursor:pointer;font-family:var(--ui)}
+.tab{font-size:11px;font-weight:600;padding:4px 14px;border-radius:5px;border:none;
+  background:transparent;color:var(--text-2);cursor:pointer;font-family:var(--ui)}
 .tab:hover{color:var(--text-1)}
-.tab.sel{background:var(--surface-2);border-color:var(--border-2);color:var(--text-1)}
+.tab.sel{background:var(--accent);color:#fff}
 .ans{width:100%;background:var(--surface-2);border:1px solid var(--border-2);color:var(--text-1);
   border-radius:5px;padding:8px 10px;font-family:inherit;font-size:12.5px;resize:vertical}
 .ans:focus{outline:none;border-color:var(--accent)}
@@ -144,7 +146,12 @@ pre.xml{font-family:var(--mono);font-size:12.5px;line-height:1.7;white-space:pre
 
 /* ── footer ── */
 .footer{border-top:1px solid var(--border);padding:11px 14px;background:var(--chrome);display:flex;justify-content:center}
-.actions{display:flex;align-items:center;gap:9px}
+.actions{display:flex;align-items:center;gap:9px;position:relative}
+/* Cancel feedback appears right above the Cancel button, not up in the header */
+.cancel-note{position:absolute;right:0;bottom:calc(100% + 9px);font-size:11.5px;
+  color:var(--text-1);background:var(--surface-2);border:1px solid var(--border-2);
+  border-radius:6px;padding:6px 11px;white-space:nowrap}
+.cancel-note[hidden]{display:none}
 .btn{min-height:42px;border-radius:var(--radius);cursor:pointer;font-family:var(--ui);
   font-size:13px;font-weight:600;display:inline-flex;align-items:center;justify-content:center;gap:7px;
   border:1px solid var(--border-2);background:var(--surface-2);color:var(--text-1);padding:0 16px}
