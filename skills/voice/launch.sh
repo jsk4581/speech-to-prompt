@@ -18,21 +18,41 @@ if [ ! -f "$HELPER/dist/index.js" ]; then
   fi
 fi
 
-RUN=$(mktemp -d "${TMPDIR:-/tmp}/stp-voice.XXXXXX") || { echo "STP_LAUNCH_ERROR mktemp failed"; exit 0; }
+TMP_ROOT="${TMPDIR:-/tmp}"
+TMP_ROOT="${TMP_ROOT%/}" # macOS exports TMPDIR with a trailing slash
+RUN=$(mktemp -d "$TMP_ROOT/stp-voice.XXXXXX") || { echo "STP_LAUNCH_ERROR mktemp failed"; exit 0; }
+
+# PIDs holding a TCP port. `fuser <port>/tcp` is psmisc (Linux); the BSD fuser
+# macOS ships takes file paths only, so probe with lsof there.
+port_pids() {
+  case "$(uname -s)" in
+    Darwin) lsof -ti "tcp:$1" 2>/dev/null ;;
+    *) fuser "$1/tcp" 2>/dev/null ;;
+  esac
+}
+
+# Is this PID one of our helpers? /proc where it exists (Linux), ps elsewhere.
+is_stp_helper() {
+  if [ -r "/proc/$1/cmdline" ]; then
+    tr '\0' ' ' < "/proc/$1/cmdline" 2>/dev/null | grep -q "helper/dist/index.js"
+  else
+    ps -o command= -p "$1" 2>/dev/null | grep -q "helper/dist/index.js"
+  fi
+}
 
 # Fixed-port setups (STP_PORT): a helper from a previous run may still hold the
 # port — e.g. its popup tab was left open, which keeps it alive by design. A new
 # /stp:voice supersedes it, but only ever kill a process that is provably an
 # STP helper.
 if [ -n "${STP_PORT:-}" ] && [ "${STP_PORT}" != "0" ]; then
-  for pid in $(fuser "${STP_PORT}/tcp" 2>/dev/null); do
-    if tr '\0' ' ' < "/proc/$pid/cmdline" 2>/dev/null | grep -q "helper/dist/index.js"; then
+  for pid in $(port_pids "$STP_PORT"); do
+    if is_stp_helper "$pid"; then
       kill "$pid" 2>/dev/null
     fi
   done
   # give the socket a moment to free up
   for _ in 1 2 3 4 5 6 7 8 9 10; do
-    if ! fuser "${STP_PORT}/tcp" >/dev/null 2>&1; then break; fi
+    if [ -z "$(port_pids "$STP_PORT")" ]; then break; fi
     sleep 0.2
   done
 fi
