@@ -33,11 +33,6 @@
     <section class="col said-col scroll" data-col="said">
       <div class="colh">
         <span class="label">What you said</span>
-        <span class="spacerflex"></span>
-        <button class="btn ghost rec" id="record-btn" data-action="record" type="button" aria-pressed="false"
-          style="min-height:28px;padding:0 10px;font-size:12px">
-          <span class="rdot"></span><span data-role="record-label">Re-record</span>
-        </button>
       </div>
       <progress class="sttbar" id="stt-progress" data-role="stt-progress" max="100" value="0" hidden></progress>
       <div class="said" id="transcript" data-role="transcript">“uh… add Google OAuth to the login page. <b>if there's no account just create one automatically</b>. oh and if login fails <b>show the error in a toast</b>. hmm, cookies for the session should be fine I think.”</div>
@@ -46,10 +41,6 @@
     <!-- COLUMN 2 : the XML to inject -->
     <section class="col xml-col scroll" data-col="xml">
       <div class="colh"><span class="label blue">XML to inject</span><span class="spacerflex"></span>
-        <span class="modes" role="group" aria-label="Draft mode" title="Simple = only what you said, structured · Max = STP also proposes defaults">
-          <button class="chip mode" data-action="mode" data-mode="simple" type="button" aria-pressed="false">Simple</button>
-          <button class="chip mode sel" data-action="mode" data-mode="max" type="button" aria-pressed="true">Max</button>
-        </span>
         <span class="keyhint">editable</span></div>
       <div class="legend">
         <span><span class="sw" style="background:rgba(46,160,67,.4);border:1px solid #2EA043"></span>STP proposal</span>
@@ -107,6 +98,14 @@
 
   <footer class="footer">
     <div class="actions">
+      <button class="btn ghost rec" id="record-btn" data-action="record" type="button" aria-pressed="false">
+        <span class="rdot"></span><span data-role="record-label">Record</span>
+      </button>
+      <span class="modes" role="group" aria-label="Draft mode" title="Simple = only what you said, structured · Max = STP also proposes defaults">
+        <button class="chip mode" data-action="mode" data-mode="simple" type="button" aria-pressed="false">Simple</button>
+        <button class="chip mode sel" data-action="mode" data-mode="max" type="button" aria-pressed="true">Max</button>
+      </span>
+      <span class="sep"></span>
       <button class="btn primary" id="confirm-btn" data-action="confirm" type="button">Confirm · inject into session →</button>
       <button class="btn ghost" id="cancel-btn" data-action="cancel" type="button">Cancel</button>
     </div>

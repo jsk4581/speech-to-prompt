@@ -6,6 +6,13 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.1.7] — 2026-08-11
+
+### Changed
+- All controls now live in the footer: Record and the Simple/Max draft-mode
+  toggle moved down next to Confirm/Cancel, so the whole action flow reads
+  left to right in one row.
+
 ## [0.1.6] — 2026-08-11
 
 ### Fixed

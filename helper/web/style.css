@@ -94,9 +94,10 @@ body{font-family:var(--ui);color:var(--text-1);letter-spacing:-.01em;
   background:var(--surface-2);color:var(--text-1);cursor:pointer}
 .chip:hover{border-color:var(--sel-border);background:rgba(36,137,219,.12);color:#fff}
 .chip.sel{border-color:var(--sel-border);background:var(--sel-bg);color:#fff}
-/* Draft-mode toggle (XML column header): compact chip pair */
-.modes{display:inline-flex;gap:4px;margin-right:8px}
-.chip.mode{font-size:10.5px;padding:3px 9px}
+/* Draft-mode toggle (footer): compact chip pair beside the record button */
+.modes{display:inline-flex;gap:4px;align-items:center}
+.chip.mode{font-size:11px;padding:6px 11px}
+.actions .sep{width:1px;height:22px;background:var(--border-2);margin:0 5px}
 .ans{width:100%;background:var(--surface-2);border:1px solid var(--border-2);color:var(--text-1);
   border-radius:5px;padding:8px 10px;font-family:inherit;font-size:12.5px;resize:vertical}
 .ans:focus{outline:none;border-color:var(--accent)}
