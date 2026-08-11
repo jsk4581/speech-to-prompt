@@ -36,6 +36,7 @@ const els = {
   grillToggle: $("#grill-toggle"),
   tabs: $("#xml-tabs"),
   xmlHint: $("#xml-hint"),
+  drafting: $("#drafting"),
 };
 
 const state = {
@@ -129,7 +130,10 @@ function connectEvents() {
   });
   es.addEventListener("transcript", (e) => {
     const data = safeJson(e.data);
-    if (data.text != null) renderTranscript(data.text);
+    if (data.text != null) {
+      renderTranscript(data.text);
+      showDrafting(); // STT is done — the drafting LLM is working now
+    }
   });
   es.addEventListener("transcribe-progress", (e) => {
     const data = safeJson(e.data);
@@ -194,6 +198,15 @@ function hideProgress() {
   els.progress.hidden = true;
 }
 
+// Circular spinner over the XML pane while the drafting LLM works (between the
+// transcript landing and the first/next round arriving).
+function showDrafting() {
+  if (els.drafting && !state.stale) els.drafting.hidden = false;
+}
+function hideDrafting() {
+  if (els.drafting) els.drafting.hidden = true;
+}
+
 /** First Record press: wipe the sample content the static View ships with. */
 function clearSamples() {
   if (state.samplesCleared) return;
@@ -232,6 +245,7 @@ function selectTab(tab) {
  */
 function renderRound(round) {
   state.activeRound = round || {};
+  hideDrafting();
   // A new round always re-opens the loop — a prior confirm may have been
   // rejected by the agent, so the button must come back.
   if (els.confirmBtn) els.confirmBtn.disabled = false;
@@ -347,7 +361,8 @@ async function toggleRecord() {
     const data = await res.json();
     hideProgress();
     renderTranscript(data.text);
-    setStage(data.language ? `captured · ${data.language}` : "captured");
+    showDrafting();
+    setStage(data.language ? `captured · ${data.language} — drafting…` : "captured — drafting…");
   } catch (err) {
     btn.classList.remove("on");
     btn.setAttribute("aria-pressed", "false");
@@ -423,6 +438,7 @@ function enterStaleMode() {
   if (state.stale) return;
   state.stale = true;
   state.activeRound = null;
+  hideDrafting();
   state.events?.close();
   for (const b of document.querySelectorAll("button, input, textarea, [contenteditable]")) {
     if (b.setAttribute) b.setAttribute("contenteditable", "false");
@@ -435,6 +451,7 @@ function enterStaleMode() {
 function cancelSession() {
   postJson("/cancel")
     .then(() => {
+      hideDrafting();
       setStage("cancelled — you can close this window");
       state.activeRound = null;
       if (els.confirmBtn) els.confirmBtn.disabled = true;

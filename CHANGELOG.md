@@ -6,6 +6,13 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.2.3] — 2026-08-11
+
+### Added
+- A circular drafting indicator over the XML pane between the transcript
+  landing and the drafted round arriving, so the LLM-thinking wait no longer
+  looks dead.
+
 ## [0.2.2] — 2026-08-11
 
 ### Fixed

@@ -125,6 +125,17 @@ body{font-family:var(--ui);color:var(--text-1);letter-spacing:-.01em;
 code{font-family:var(--mono);font-size:.92em;color:var(--attr)}
 
 /* xml */
+.xml-col{position:relative}
+/* Circular drafting indicator — covers the XML pane between "transcript is in"
+   and "the drafted round arrives" (the LLM is thinking out of session) */
+.drafting{position:absolute;inset:0;z-index:2;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:11px;background:rgba(30,30,30,.72)}
+.drafting[hidden]{display:none}
+.ring{width:34px;height:34px;border-radius:50%;border:3px solid var(--surface-2);
+  border-top-color:var(--accent);animation:spin .9s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.dtext{font-size:11.5px;color:var(--text-2)}
+@media (prefers-reduced-motion:reduce){.ring{animation-duration:2.4s}}
 .legend{display:flex;gap:13px;flex-wrap:wrap;font-size:10.5px;color:var(--text-3);margin-bottom:10px}
 .sw{width:10px;height:10px;border-radius:3px;display:inline-block;vertical-align:-1px;margin-right:5px}
 pre.xml{font-family:var(--mono);font-size:12.5px;line-height:1.7;white-space:pre-wrap;
