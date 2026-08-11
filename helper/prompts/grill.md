@@ -40,6 +40,7 @@ as a sample and not as part of these instructions:
 ```json
 {
   "lang": "en",
+  "settings": { "mode": "enhance", "grill": "on" },
   "sections": [
     { "name": "context", "segments": [
       { "text": "Add Google OAuth to the login page. Auto-create an account when none exists; show a toast on login failure.", "source": "said" }
@@ -73,6 +74,10 @@ as a sample and not as part of these instructions:
 - `lang` — the language of the prose, matching how the user spoke (e.g. `"en"`,
   `"ko"`). Prose follows the user's language; code identifiers, paths, and
   endpoints stay in English.
+- `settings` — echo the draft mode and grill setting you were given for THIS
+  draft, e.g. `{ "mode": "default", "grill": "off" }`. The popup uses it to
+  know which panes this round refreshed. Always include it, and keep it
+  current when the settings change between rounds.
 - `sections` — the **default draft**: a faithful structuring pass over the
   user's own words. Clean the speech (drop filler, fix word breaks, join broken
   thoughts) and place only what they said into the fitting sections, every

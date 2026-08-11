@@ -147,11 +147,11 @@ pre.xml{font-family:var(--mono);font-size:12.5px;line-height:1.7;white-space:pre
 /* ── footer ── */
 .footer{border-top:1px solid var(--border);padding:11px 14px;background:var(--chrome);display:flex;justify-content:center}
 .actions{display:flex;align-items:center;gap:9px;position:relative}
-/* Cancel feedback appears right above the Cancel button, not up in the header */
-.cancel-note{position:absolute;right:0;bottom:calc(100% + 9px);font-size:11.5px;
+/* Confirm/Cancel feedback appears right above the buttons, not up in the header */
+.action-note{position:absolute;right:0;bottom:calc(100% + 9px);font-size:11.5px;
   color:var(--text-1);background:var(--surface-2);border:1px solid var(--border-2);
-  border-radius:6px;padding:6px 11px;white-space:nowrap}
-.cancel-note[hidden]{display:none}
+  border-radius:6px;padding:6px 11px;max-width:440px;text-align:right}
+.action-note[hidden]{display:none}
 .btn{min-height:42px;border-radius:var(--radius);cursor:pointer;font-family:var(--ui);
   font-size:13px;font-weight:600;display:inline-flex;align-items:center;justify-content:center;gap:7px;
   border:1px solid var(--border-2);background:var(--surface-2);color:var(--text-1);padding:0 16px}

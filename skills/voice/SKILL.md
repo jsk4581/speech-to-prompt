@@ -146,7 +146,11 @@ outcome and act on `status`:
   reshapes it to the new settings — add or drop the `enhanced` variant for
   `mode`, add questions or remove them (and any question slots) for `grill` —
   rewrites `<RUN>/draft.json`, and replies with the question count. Then
-  publish the next round the same way.
+  publish the next round the same way. Grill never depends on enhance: with
+  mode `default`, questions run on the default draft alone — do not add an
+  enhanced variant just because grill turned on. Repeated flips coalesce
+  server-side, so one redraft may cover several (e.g. enhance *and* grill in
+  a single `settings` outcome).
 - **`confirmed` + `"ok":true`** — the user confirmed and the prompt passed the
   invariants. Go to step 5 with `finalOut`.
 - **`confirmed` + `"ok":false`** — the confirmed XML is not injection-ready

@@ -120,6 +120,12 @@ export interface GrillDraft {
   enhanced?: Section[];
   /** Open questions for the popup (sidecar; not serialized into the XML). */
   questions: Question[];
+  /**
+   * Echo of the settings this draft was produced under. The popup compares it
+   * against the live toggles to know which pane a round actually refreshed
+   * (a round drafted under stale settings keeps that pane's spinner alive).
+   */
+  settings?: { mode?: string; grill?: string };
 }
 
 export type Severity = "error" | "warn";

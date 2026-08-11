@@ -38,7 +38,7 @@ const els = {
   xmlHint: $("#xml-hint"),
   drafting: $("#drafting"),
   draftingQ: $("#drafting-q"),
-  cancelNote: $("#cancel-note"),
+  actionNote: $("#action-note"),
 };
 
 const state = {
@@ -55,6 +55,8 @@ const state = {
   /** the helper launch this page belongs to (from the SSE 'ready' event) */
   runId: null,
   stale: false,
+  /** grill work requested but not yet delivered by a round (spinner stays up) */
+  pendingGrill: false,
 };
 
 // ── helpers ──────────────────────────────────────────────────────────────────
@@ -207,9 +209,13 @@ function hideProgress() {
 function showDrafting({ xml = true, grill = false } = {}) {
   if (state.stale) return;
   if (els.drafting && xml) els.drafting.hidden = false;
-  if (els.draftingQ && grill) els.draftingQ.hidden = false;
+  if (els.draftingQ && grill) {
+    state.pendingGrill = true;
+    els.draftingQ.hidden = false;
+  }
 }
 function hideDrafting() {
+  state.pendingGrill = false;
   if (els.drafting) els.drafting.hidden = true;
   if (els.draftingQ) els.draftingQ.hidden = true;
 }
@@ -252,13 +258,38 @@ function selectTab(tab) {
  */
 function renderRound(round) {
   state.activeRound = round || {};
-  hideDrafting();
+  // Confirm went through — the agent injected the prompt. Close out the loop.
+  if (round.confirmed) {
+    hideDrafting();
+    setStage("confirmed — injected");
+    actionNote("Confirmed ✓ — injected into the session. You can close this window.");
+    state.activeRound = null;
+    if (els.confirmBtn) els.confirmBtn.disabled = true;
+    if (els.cancelBtn) els.cancelBtn.disabled = true;
+    return;
+  }
+  // The XML pane is refreshed by any content round. The questions pane only
+  // counts as refreshed when the round was drafted under the grill setting
+  // currently selected — a round from a stale-settings redraft keeps the
+  // "grilling…" spinner alive (the grill redraft is still on its way).
+  if (typeof round.draftXml === "string") {
+    if (els.drafting) els.drafting.hidden = true;
+    const want = els.grillToggle?.checked ? "on" : "off";
+    const drafted = round.settings && round.settings.grill;
+    if (!state.pendingGrill || !drafted || drafted === want) {
+      state.pendingGrill = false;
+      if (els.draftingQ) els.draftingQ.hidden = true;
+    }
+  } else {
+    hideDrafting(); // notice-only rounds (e.g. a rejection) clear everything
+  }
   // A new round always re-opens the loop — a prior confirm may have been
   // rejected by the agent, so the button must come back.
   if (els.confirmBtn) els.confirmBtn.disabled = false;
   if (round.problem) {
     setStage("confirm rejected — see note");
     renderTranscript(`⚠ ${round.problem}`);
+    actionNote(`Rejected: ${round.problem}`);
   } else if (round.stage) {
     setStage(round.stage);
   }
@@ -402,6 +433,7 @@ function pushAnswers() {
   if (!state.activeRound) return; // sample questions in the default View are local
   clearTimeout(state.answerTimer);
   state.answerTimer = setTimeout(() => {
+    if (!state.activeRound) return; // confirm/cancel landed while debouncing
     postJson("/answer", { answers: collectAnswers() })
       .then(() => {
         // Keep the loop visibly alive: the agent is folding the answers in and
@@ -410,7 +442,7 @@ function pushAnswers() {
         markAnswered();
       })
       .catch(() => setStage("answer failed"));
-  }, 250);
+  }, 800);
 }
 
 /** Dim question cards that already carry an answer, so progress is visible. */
@@ -464,11 +496,11 @@ function enterStaleMode() {
   renderTranscript("This tab belongs to an older run. Use the newest STP popup window.");
 }
 
-/** Inline feedback right above the Cancel button (the header is too far away). */
-function cancelNote(text) {
-  if (!els.cancelNote) return;
-  els.cancelNote.textContent = text;
-  els.cancelNote.hidden = false;
+/** Inline feedback right above the Confirm/Cancel buttons (the header is too far away). */
+function actionNote(text) {
+  if (!els.actionNote) return;
+  els.actionNote.textContent = text;
+  els.actionNote.hidden = false;
 }
 
 function cancelSession() {
@@ -476,23 +508,24 @@ function cancelSession() {
     .then(() => {
       hideDrafting();
       setStage("cancelled");
-      cancelNote("Cancelled — you can close this window");
+      actionNote("Cancelled — you can close this window");
       state.activeRound = null;
       if (els.confirmBtn) els.confirmBtn.disabled = true;
       if (els.cancelBtn) els.cancelBtn.disabled = true;
     })
     .catch(() => {
       setStage("cancel failed");
-      cancelNote("Cancel failed — try again");
+      actionNote("Cancel failed — try again");
     });
 }
 
 function confirmAndInject() {
   const xml = els.xml.textContent ?? "";
   // Delivery ≠ acceptance: the agent validates the confirmed XML and may reject
-  // it (unresolved questions, missing success criteria). Only say what we know —
-  // "sent" — and let the next SSE round re-open the loop if it was rejected.
+  // it. Only say what we know — "sent" — the success/rejection notice arrives
+  // as the next round (renderRound handles both).
   setStage("confirm sent — waiting for validation…");
+  actionNote("Confirm sent — validating…");
   els.confirmBtn.disabled = true; // guard double-submit while the POST is in flight
   postJson("/confirm", { xml, answers: collectAnswers() })
     .catch((err) => {

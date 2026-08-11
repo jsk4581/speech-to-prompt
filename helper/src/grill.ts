@@ -44,6 +44,8 @@ export interface RoundPayload {
   enhancedXml?: string;
   /** Note: the popup reads `chips`, while the schema's Question uses `choices`. */
   questions: { id: string; tag: string; text: string; chips: string[] }[];
+  /** The settings this round was drafted under (echoed from the draft). */
+  settings?: { mode?: string; grill?: string };
   /** What the user said — so a popup that (re)connects mid-loop shows the real
    *  words instead of the static sample text. */
   transcript?: string;
@@ -92,6 +94,9 @@ export function roundPayload(draft: GrillDraft, stage?: string): RoundPayload {
       { lang: draft.lang, sections: draft.enhanced, questions },
       { indent: "  " },
     );
+  }
+  if (draft.settings && typeof draft.settings === "object") {
+    payload.settings = { mode: draft.settings.mode, grill: draft.settings.grill };
   }
   return payload;
 }
@@ -288,6 +293,15 @@ async function finishRound(c: Conn, raw: RawOutcome, finalOut: string | undefine
       body: JSON.stringify({ stage: "confirm rejected", problem: out.problem }),
     }).catch(() => {
       /* best-effort notice — the agent still reports the problem */
+    });
+  }
+  if (out.status === "confirmed" && out.ok) {
+    // Tell the popup its confirm went through — it shows the success note and
+    // closes the loop UI. Notice-only round (no draftXml), so never replayed.
+    await request(c, "POST", "/agent/round", {
+      body: JSON.stringify({ stage: "confirmed — injected into the session", confirmed: true }),
+    }).catch(() => {
+      /* best-effort — injection still proceeds */
     });
   }
   emit(out);

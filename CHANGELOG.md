@@ -6,6 +6,26 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.2.8] — 2026-08-11
+
+### Fixed
+- With Enhance and Grill both in flight, the round from the enhance redraft
+  no longer kills the still-running "grilling…" spinner: every round now
+  carries the settings it was drafted under, and the questions pane clears
+  only when a round drafted with the current grill setting arrives.
+- Grill never depends on enhance: flipping Grill on in default mode runs the
+  question pass on the default draft alone.
+
+### Added
+- Confirm feedback above the buttons, like Cancel's: "Confirm sent —
+  validating…" on press, then "Confirmed ✓ — injected into the session" when
+  the agent reports the injection went through (a new success notice), or the
+  rejection reason if it didn't.
+
+### Changed
+- Answer sending debounce widened (250ms → 800ms) so a quick chip-then-Confirm
+  is less likely to trigger an extra fold round first.
+
 ## [0.2.7] — 2026-08-11
 
 ### Fixed

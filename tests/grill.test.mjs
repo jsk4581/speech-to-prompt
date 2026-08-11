@@ -70,6 +70,12 @@ test("roundPayload omits enhancedXml when the draft has no enhanced variant", ()
   assert.equal(p.enhancedXml, undefined);
 });
 
+test("roundPayload passes the draft's settings echo through", () => {
+  const p = roundPayload({ sections: [], questions: [], settings: { mode: "enhance", grill: "on" } });
+  assert.deepEqual(p.settings, { mode: "enhance", grill: "on" });
+  assert.equal(roundPayload({ sections: [], questions: [] }).settings, undefined);
+});
+
 // ── finalizeConfirmed ────────────────────────────────────────────────────────
 
 const READY_XML = `<task>
