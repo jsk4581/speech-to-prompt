@@ -473,16 +473,11 @@ function wireEvents() {
     pushSettings({ grill: els.grillToggle.checked ? "on" : "off" }),
   );
 
-  // Leaving the popup mid-grill = cancel (best-effort; SSE close is the backstop).
-  window.addEventListener("pagehide", () => {
-    if (state.activeRound) {
-      try {
-        navigator.sendBeacon?.("/cancel");
-      } catch {
-        /* SSE disconnect → helper declares popup_closed after grace */
-      }
-    }
-  });
+  // Deliberate cancel = the Cancel button only. Popup closure is detected by
+  // the helper via SSE disconnect + grace (popup_closed). A pagehide /cancel
+  // beacon used to live here, but cookies are origin-wide, so a *stale* popup
+  // tab from a superseded run being closed (or tab-discarded, or reloaded)
+  // fired it with the new session's cookie — a phantom cancel.
 }
 
 // ── boot ─────────────────────────────────────────────────────────────────────

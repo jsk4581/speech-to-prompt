@@ -6,6 +6,19 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.2.1] — 2026-08-11
+
+### Fixed
+- Phantom cancels: closing (or the browser discarding, or reloading) a stale
+  popup tab from a superseded run fired a pagehide `/cancel` beacon with the
+  new session's origin-wide cookie, silently ending a session the user never
+  cancelled. The beacon is gone — Cancel is now the button only; popup closure
+  is still detected via SSE disconnect + grace.
+
+### Changed
+- The Enhance/Grill switches are now pill toggles with the label inside the
+  button and a knob that slides between the off and on sides.
+
 ## [0.2.0] — 2026-08-11
 
 ### Changed
