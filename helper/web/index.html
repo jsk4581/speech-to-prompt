@@ -50,31 +50,26 @@
         </span>
         <span class="spacerflex"></span>
         <span class="keyhint" id="xml-hint">editable</span></div>
-      <div class="legend">
-        <span><span class="sw" style="background:rgba(46,160,67,.4);border:1px solid #2EA043"></span>STP proposal</span>
-        <span><span class="sw" style="background:var(--surface);border:1px solid var(--border-2)"></span>what you said</span>
-        <span><span class="sw" style="background:rgba(215,186,125,.16);border:1px solid rgba(215,186,125,.55)"></span>needs you (question)</span>
-      </div>
-<pre class="xml" id="xml-editor" data-role="xml" contenteditable spellcheck="false"><span class="cmt">&lt;!-- drafted by STP · 3 questions open · grounded in your repo --&gt;</span>
+<pre class="xml" id="xml-editor" data-role="xml" contenteditable spellcheck="false"><span class="cmt">&lt;!-- drafted by STP · grounded in your repo --&gt;</span>
 <span class="p">&lt;</span><span class="tag">task</span><span class="p">&gt;</span>
   <span class="p">&lt;</span><span class="tag">context</span><span class="p">&gt;</span>
     Add Google OAuth to the login page. Auto-create an account
     when none exists; show a toast on login failure.
   <span class="p">&lt;/</span><span class="tag">context</span><span class="p">&gt;</span>
 
-  <span class="p">&lt;</span><span class="tag">references</span><span class="p">&gt;</span>  <span class="cmt">&lt;!-- found in your repo --&gt;</span>
-    <span class="add">src/pages/login.tsx:<span class="num">18</span>, src/auth/, src/components/Toast.tsx</span>
+  <span class="p">&lt;</span><span class="tag">references</span><span class="p">&gt;</span>
+    src/pages/login.tsx:<span class="num">18</span>, src/auth/, src/components/Toast.tsx
   <span class="p">&lt;/</span><span class="tag">references</span><span class="p">&gt;</span>
 
-  <span class="p">&lt;</span><span class="tag">objective</span> <span class="attr">mode</span><span class="p">=</span><span class="qslot">"?"</span><span class="p">&gt;</span><span class="qslot"> implement vs. advise — set in question 1 </span><span class="p">&lt;/</span><span class="tag">objective</span><span class="p">&gt;</span>
+  <span class="p">&lt;</span><span class="tag">objective</span> <span class="attr">mode</span><span class="p">=</span><span class="str">"implement"</span><span class="p">&gt;</span> Wire Google OAuth end to end <span class="p">&lt;/</span><span class="tag">objective</span><span class="p">&gt;</span>
 
   <span class="p">&lt;</span><span class="tag">success_criteria</span><span class="p">&gt;</span>
-    <span class="add">On Google login: issue a session cookie · auto-create new accounts ·
-    show a toast on failure · login e2e passes</span>
+    On Google login: issue a session cookie · auto-create new accounts ·
+    show a toast on failure · login e2e passes
   <span class="p">&lt;/</span><span class="tag">success_criteria</span><span class="p">&gt;</span>
 
   <span class="p">&lt;</span><span class="tag">guardrails</span><span class="p">&gt;</span>
-    <span class="add">Reuse the existing auth flow. No over-engineering, no hardcoded secrets.</span>
+    Reuse the existing auth flow. No over-engineering, no hardcoded secrets.
   <span class="p">&lt;/</span><span class="tag">guardrails</span><span class="p">&gt;</span>
 <span class="p">&lt;/</span><span class="tag">task</span><span class="p">&gt;</span></pre>
     </section>

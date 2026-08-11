@@ -137,13 +137,9 @@ code{font-family:var(--mono);font-size:.92em;color:var(--attr)}
 @keyframes spin{to{transform:rotate(360deg)}}
 .dtext{font-size:11.5px;color:var(--text-2)}
 @media (prefers-reduced-motion:reduce){.ring{animation-duration:2.4s}}
-.legend{display:flex;gap:13px;flex-wrap:wrap;font-size:10.5px;color:var(--text-3);margin-bottom:10px}
-.sw{width:10px;height:10px;border-radius:3px;display:inline-block;vertical-align:-1px;margin-right:5px}
 pre.xml{font-family:var(--mono);font-size:12.5px;line-height:1.7;white-space:pre-wrap;
   color:var(--code);border:1px solid var(--border);border-radius:6px;background:var(--xml-bg);padding:14px 15px}
 .p{color:var(--punct)} .tag{color:var(--tag)} .attr{color:var(--attr)} .str{color:var(--str)}
-.add{background:rgba(46,160,67,.26);border-radius:3px;padding:0 2px}   /* proposal — green tint */
-.qslot{color:var(--gold);background:rgba(215,186,125,.13);border-bottom:1px dashed rgba(215,186,125,.55);border-radius:2px;padding:0 2px}
 .cmt{color:var(--comment)} .num{color:var(--green-l)}
 
 /* ── footer ── */

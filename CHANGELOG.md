@@ -6,6 +6,15 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.2.6] — 2026-08-11
+
+### Removed
+- The provenance legend ("STP proposal / what you said / needs you") above the
+  XML pane. Its colors only ever existed in the static sample — live drafts
+  render as plain editable XML — and the said-vs-added distinction now lives
+  in the Default/Enhanced tab comparison. In-pane provenance highlighting for
+  the Enhanced tab stays on the roadmap.
+
 ## [0.2.5] — 2026-08-11
 
 ### Changed
