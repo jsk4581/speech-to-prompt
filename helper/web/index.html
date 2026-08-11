@@ -107,12 +107,14 @@
       <button class="btn ghost rec" id="record-btn" data-action="record" type="button" aria-pressed="false">
         <span class="rdot"></span><span data-role="record-label">Record</span>
       </button>
+      <!-- aria-label on the input: a <label title> otherwise becomes the control's
+           accessible name, so screen readers announce the hint instead of "Enhance". -->
       <label class="switch" title="Off = only your words, structured · On = adds a repo-refined variant in a second tab">
-        <input type="checkbox" id="enhance-toggle" />
+        <input type="checkbox" id="enhance-toggle" aria-label="Enhance" />
         <span class="swlabel">Enhance</span><span class="knob"></span>
       </label>
       <label class="switch" title="On = STP asks the few expensive questions · Off = no questions, gaps stay absent">
-        <input type="checkbox" id="grill-toggle" />
+        <input type="checkbox" id="grill-toggle" aria-label="Grill" />
         <span class="swlabel">Grill</span><span class="knob"></span>
       </label>
       <span class="sep"></span>
