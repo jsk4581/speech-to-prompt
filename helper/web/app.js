@@ -134,7 +134,12 @@ function connectEvents() {
   es.addEventListener("transcript", (e) => {
     const data = safeJson(e.data);
     if (data.text != null) {
+      // Transcription is over: retire the bar and the "transcribing… N%" stage it
+      // drove. This path also runs for a popup that reconnected mid-transcribe,
+      // where toggleRecord's own cleanup never happens.
+      hideProgress();
       renderTranscript(data.text);
+      setStage(data.language ? `captured · ${data.language} — drafting…` : "captured — drafting…");
       // STT is done — the drafting LLM works now; questions only if grill is on.
       showDrafting({ xml: true, grill: Boolean(els.grillToggle?.checked) });
     }
