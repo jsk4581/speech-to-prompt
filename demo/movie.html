@@ -1,12 +1,13 @@
 <!doctype html>
 <!--
-  STP demo screencast scene — deterministic timeline.
-  window.seek(t) renders the exact frame for time t (ms); window.DURATION ends it.
-  Open with ?play for a live preview; demo/shoot.mjs steps seek() per frame and
-  screenshots each one, then ffmpeg assembles the GIF. No real audio/LLM runs —
-  the scene replays a scripted session that mirrors the real popup's behavior.
-  A keyframed "camera" (zoom + pan on #world) highlights each phase; captions
-  and title cards live outside the camera on a fixed screen layer.
+  STP compact demo scene (~10s) — deterministic timeline, same contract as
+  movie.html: window.seek(t) renders the exact frame for time t (ms),
+  window.DURATION ends it, ?play previews live, ?debug overlays the scene tag.
+  No title cards, no captions — the popup's three-column structure carries the
+  story: /stp:voice → record → What you said → XML to inject → STP's questions
+  → one confirmed XML lands in the terminal. The camera zooms only to present
+  each of the three columns; everything else plays wide.
+  Render with demo/shoot.mjs + demo/build.sh.
 -->
 <html lang="en">
 <head>
@@ -42,15 +43,15 @@ body{font-family:var(--ui);color:var(--text-1);letter-spacing:-.01em;-webkit-fon
 .tbar .c{width:12px;height:12px;border-radius:50%}
 .tbar .c.r{background:#F87171}.tbar .c.y{background:#F5B14E}.tbar .c.g{background:#54C77B}
 .tbar .ttl{margin-left:12px;font-size:14px;color:var(--text-3);font-weight:600}
-.tbody{padding:24px 28px;font-family:var(--mono);font-size:19px;line-height:1.85;color:var(--text-2)}
+.tbody{padding:26px 30px;font-family:var(--mono);font-size:23px;line-height:1.8;color:var(--text-2)}
 .tbody .muted{color:var(--text-3)}
 .tbody .gp{color:var(--accent);font-weight:600}
 .row{white-space:pre-wrap}
 #typed{color:var(--text-1)}
-.caret{display:inline-block;width:10px;height:22px;background:var(--accent);vertical-align:-4px;margin-left:2px}
-#inj{margin-top:6px}
+.caret{display:inline-block;width:11px;height:26px;background:var(--accent);vertical-align:-4px;margin-left:2px}
+#inj{margin-top:8px}
 #inj .xnote{color:#4DAAFC}
-#inj pre{font-family:var(--mono);font-size:16.5px;line-height:1.6;white-space:pre-wrap;color:var(--code)}
+#inj pre{font-family:var(--mono);font-size:20px;line-height:1.62;white-space:pre-wrap;color:var(--code)}
 
 /* ── popup browser window (the real STP popup, reproduced) ── */
 #popupwin{position:absolute;left:210px;top:66px;width:1560px;height:918px;
@@ -123,20 +124,6 @@ code{font-family:var(--mono);font-size:.92em;color:var(--attr)}
 #cursor{position:absolute;width:30px;height:30px;left:0;top:0;z-index:50;pointer-events:none;
   filter:drop-shadow(0 2px 5px rgba(0,0,0,.55))}
 #ripple{position:absolute;width:10px;height:10px;border-radius:50%;border:2px solid #4DAAFC;opacity:0;z-index:49}
-
-/* ── screen layer: big captions + title cards (not affected by the camera) ── */
-#caption{position:absolute;left:0;width:1920px;bottom:52px;text-align:center;z-index:60;opacity:0}
-#caption.top{bottom:auto;top:52px}
-#caption .cap{display:inline-block;font-size:44px;font-weight:800;color:#fff;background:rgba(10,10,10,.78);
-  border:1px solid rgba(255,255,255,.10);border-radius:18px;padding:20px 44px;letter-spacing:-.02em;
-  box-shadow:0 18px 50px rgba(0,0,0,.5)}
-#caption .cap .m{color:#4DAAFC}
-#card{position:absolute;inset:0;z-index:70;display:flex;flex-direction:column;align-items:center;
-  justify-content:center;gap:22px;background:rgba(10,11,13,.66);opacity:0;text-align:center}
-#card .big{font-size:96px;font-weight:900;letter-spacing:-.03em;color:#fff}
-#card .big .m{color:#4DAAFC}
-#card .sub{font-size:34px;font-weight:600;color:var(--text-2)}
-#card .sub .m{color:#4DAAFC}
 </style>
 </head>
 <body>
@@ -147,13 +134,12 @@ code{font-family:var(--mono);font-size:.92em;color:var(--attr)}
     <div class="tbar"><span class="c r"></span><span class="c y"></span><span class="c g"></span>
       <span class="ttl">Claude Code — ~/work/webapp</span></div>
     <div class="tbody">
-      <div class="row muted">Keep the session context clean:</div>
-      <div class="row muted">refine your voice <b style="color:var(--text-1)">outside</b> the session with <span class="gp">/stp:voice</span>.</div>
+      <div class="row muted">Refine your voice <b style="color:var(--text-1)">outside</b> the session:</div>
       <div class="row" style="height:14px"></div>
       <div class="row" id="typedrow"><span class="gp">❯</span> <span id="typed"></span><span class="caret" id="caret"></span></div>
-      <div class="row" id="runline" style="opacity:0">  <span class="muted">→ helper up · popup opened (127.0.0.1 · token-gated)</span></div>
+      <div class="row" id="runline" style="opacity:0">  <span class="muted">→ popup opened (127.0.0.1 · token-gated)</span></div>
       <div id="inj" style="opacity:0">
-        <div class="row"><span class="xnote">← one confirmed XML injected</span> <span class="muted">(drafts &amp; raw speech never enter)</span></div>
+        <div class="row"><span class="xnote">← one confirmed XML injected</span></div>
         <pre id="injxml"></pre>
       </div>
     </div>
@@ -166,7 +152,7 @@ code{font-family:var(--mono);font-size:.92em;color:var(--attr)}
       <div class="pchrome"><span class="dot"></span><span class="brand">Speech-To-Prompt</span>
         <span class="stage" id="stage">· capture</span></div>
       <div class="split">
-        <section class="col said-col">
+        <section class="col said-col" id="said-col">
           <div class="colh"><span class="label">What you said</span></div>
           <div class="sttbar" id="sttbar" style="display:none"><span class="fill" id="sttfill"></span></div>
           <div class="said" id="transcript">Press <b style="color:var(--text-1)">Record</b> and talk through what you want built.</div>
@@ -176,7 +162,7 @@ code{font-family:var(--mono);font-size:.92em;color:var(--attr)}
           <div class="colh"><span class="label blue">XML to inject</span><span class="spacerflex"></span><span class="keyhint">editable</span></div>
           <pre class="xml" id="xml-editor"></pre>
         </section>
-        <section class="col q-col">
+        <section class="col q-col" id="q-col">
           <div class="drafting" id="drafting-q"><span class="ring" id="ring2"></span><span class="dtext">grilling…</span></div>
           <div class="colh"><span class="label">STP's questions <span id="q-count" style="color:var(--accent)">0</span></span></div>
           <div id="questions" style="opacity:0">
@@ -202,7 +188,7 @@ code{font-family:var(--mono);font-size:.92em;color:var(--attr)}
         <div class="actions">
           <button class="btn ghost rec" id="record-btn"><span class="rdot" id="rdot"></span><span id="rec-label">Record</span></button>
           <span class="switch" id="enh-sw"><span class="swlabel">Enhance</span><span class="knob"></span></span>
-          <span class="switch" id="grill-sw"><span class="swlabel">Grill</span><span class="knob"></span></span>
+          <span class="switch on" id="grill-sw"><span class="swlabel">Grill</span><span class="knob"></span></span>
           <span class="sep"></span>
           <button class="btn primary" id="confirm-btn">Confirm · inject into session →</button>
           <button class="btn ghost" id="cancel-btn">Cancel</button>
@@ -216,26 +202,20 @@ code{font-family:var(--mono);font-size:.92em;color:var(--attr)}
   <svg id="cursor" viewBox="0 0 24 24" width="30" height="30"><path d="M5 3l14 7-6 1.6L9.6 18z" fill="#fff" stroke="#141414" stroke-width="1.4" stroke-linejoin="round"/></svg>
 </div>
 
-<div id="caption"><span class="cap" id="capt"></span></div>
 <div id="scenetag" style="position:absolute;left:14px;top:12px;z-index:90;display:none;
   font:600 15px var(--mono);color:#4DAAFC;background:rgba(0,0,0,.6);border:1px solid #333;
   border-radius:6px;padding:4px 10px"></div>
-<div id="card">
-  <div class="big" id="card-big"></div>
-  <div class="sub" id="card-sub"></div>
-</div>
 </div>
 
 <script>
 // ── content ──────────────────────────────────────────────────────────────────
-const SPOKEN = '“uh… add Google OAuth to the login page. if there’s no account just create one automatically. oh and if login fails show the error in a toast. hmm, cookies for the session should be fine I think.”';
+const SPOKEN = '“uh… add Google OAuth to the login page. if there’s no account just create one automatically. oh and if login fails show the error in a toast.”';
 
 const XML_DRAFT = `<!-- drafted by STP · grounded in your repo -->
 <task>
   <context>
     Add Google OAuth to the login page. Auto-create an account
-    when none exists; show a toast on login failure. Keep the
-    session in cookies.
+    when none exists; show a toast on login failure.
   </context>
 
   <references>
@@ -248,8 +228,7 @@ const XML_DRAFT = `<!-- drafted by STP · grounded in your repo -->
 const XML_FINAL = `<task>
   <context>
     Add Google OAuth to the login page. Auto-create an account
-    when none exists; show a toast on login failure. Keep the
-    session in cookies.
+    when none exists; show a toast on login failure.
   </context>
   <references>
     src/pages/login.tsx, src/auth/, src/components/Toast.tsx
@@ -278,19 +257,17 @@ function hi(src){
   return out+esc(src.slice(last));
 }
 
-// ── timeline (ms) — calm pacing: long holds, few slow camera moves ──────────
+// ── timeline (ms) — one pass, ≤10s ───────────────────────────────────────────
 const T={
-  cardIn:[0,2200],
-  type:[2200,4000], enter:[4200,5000], idle:[5000,6600],
-  clickRec:[6800,7100], rec:[7100,11500], clickStop:[11500,11800],
-  stt:[11800,14400], draft:[14400,16800], review:[16800,19600],
-  clickGrill:[20000,20300], grilling:[20300,22600], quest:[22600,25400],
-  clickChip:[25400,25700], answered:[25700,27200],
-  clickConf:[27600,27900], validating:[27900,29200], confirmed:[29200,31200],
-  exit:[31200,31900], inject:[32400,35600], hold:[35600,37000],
-  cardOut:[37000,40400]
+  type:[0,800], enter:[900,1400], wide:[1400,2200],
+  clickRec:[2200,2400], rec:[2400,3200], clickStop:[3200,3400],
+  stt:[3400,4600],
+  draft:[4600,5200], review:[5200,6600],
+  quest:[6600,8000], clickChip:[7300,7500],
+  clickConf:[8200,8400], confirmed:[8400,8800],
+  exit:[8800,9200], inject:[9200,10000]
 };
-const DURATION=40400;
+const DURATION=10000;
 
 const clamp01=v=>v<0?0:v>1?1:v;
 const prog=(t,a,b)=>clamp01((t-a)/(b-a));
@@ -305,51 +282,31 @@ let CUR=[], CAM=[];
 function center(el){const r=el.getBoundingClientRect();return [r.left+r.width/2,r.top+r.height/2];}
 function measure(){
   TGT={
-    typed:center($('typedrow')),
-    rec:center($('record-btn')), grill:center($('grill-sw')),
-    chip:center($('chip1')), conf:center($('confirm-btn')),
-    said:center($('transcript')), xml:center($('xml-col')),
-    q1:center($('q1')), qcol:center($('questions')),
-    inj:[640,560]
+    rec:center($('record-btn')), chip:center($('chip1')), conf:center($('confirm-btn')),
+    said:center($('said-col')), xml:center($('xml-col')), q:center($('q-col'))
   };
   buildPaths();
 }
 function buildPaths(){
   const G=TGT;
   CUR=[
-    [0,860,620],[T.type[0],860,620],
-    [T.idle[0],G.rec[0],G.rec[1]-140],
+    [0,860,620],[1600,860,620],
     [T.clickRec[0]-200,G.rec[0],G.rec[1]],[T.clickStop[1],G.rec[0],G.rec[1]],
-    [T.stt[1],700,520],[T.review[0]+600,880,470],[T.review[1]-500,880,470],
-    [T.clickGrill[0]-150,G.grill[0],G.grill[1]],[T.clickGrill[1]+400,G.grill[0],G.grill[1]],
-    [T.quest[0]+900,G.chip[0],G.chip[1]-60],
-    [T.clickChip[0]-150,G.chip[0],G.chip[1]],[T.clickChip[1]+400,G.chip[0],G.chip[1]],
-    [T.clickConf[0]-200,G.conf[0],G.conf[1]],[T.clickConf[1]+400,G.conf[0],G.conf[1]],
-    [T.exit[1],700,600],[DURATION,700,600]
+    [T.quest[0]+300,G.chip[0],G.chip[1]-60],
+    [T.clickChip[0]-150,G.chip[0],G.chip[1]],[T.clickChip[1]+300,G.chip[0],G.chip[1]],
+    [T.clickConf[0]-150,G.conf[0],G.conf[1]],[DURATION,G.conf[0],G.conf[1]]
   ];
-  // camera keyframes: [t, cx, cy, scale] — 7 held shots, slow ~800ms moves.
-  // One shot per act; no micro-moves inside an act.
+  // camera: wide everywhere; the only zooms present each column in turn.
   CAM=[
-    // act 1 — terminal: one close shot on the prompt line
-    [0,960,540,1.0],[1600,960,540,1.0],
-    [2400,G.typed[0]+180,G.typed[1]+30,1.5],[T.type[1]+100,G.typed[0]+180,G.typed[1]+30,1.5],
-    // popup enters: wide
-    [T.enter[1],960,540,1.0],[T.idle[1]-400,960,540,1.0],
-    // act 2 — capture: one shot holding the left columns + footer through
-    // record, speech, stop and transcription
-    [T.clickRec[0],950,590,1.3],[T.stt[1],950,590,1.3],
-    // act 3 — draft: the XML column, one shot
-    [T.draft[0]+800,G.xml[0],G.xml[1]-30,1.4],[T.review[1]-400,G.xml[0],G.xml[1]-30,1.4],
-    // act 4a — the Grill flip: footer parked at the bottom edge
-    [T.clickGrill[0]-100,G.grill[0]+60,G.grill[1]-280,1.5],[T.clickGrill[1]+600,G.grill[0]+60,G.grill[1]-280,1.5],
-    // act 4b — questions: one shot for grilling, the cards and the chip click
-    [T.grilling[0]+1100,1180,470,1.35],[T.answered[1]-300,1180,470,1.35],
-    // act 4c — confirm: button + note
-    [T.clickConf[0]-200,G.conf[0]-40,G.conf[1]-290,1.5],[T.confirmed[1]-300,G.conf[0]-40,G.conf[1]-290,1.5],
-    // act 5 — wide, then the injected XML in the terminal
-    [T.exit[1],960,540,1.0],[T.inject[0],960,540,1.0],
-    [T.inject[0]+800,G.inj[0],G.inj[1],1.45],[T.hold[1],G.inj[0],G.inj[1],1.45],
-    [T.cardOut[0]+900,960,540,1.0],[DURATION,960,540,1.0]
+    [0,960,540,1.0],[T.stt[0],960,540,1.0],
+    // col 1 — What you said (transcript types in)
+    [T.stt[0]+450,G.said[0]+120,G.said[1]-120,1.55],[T.draft[0]+150,G.said[0]+120,G.said[1]-120,1.55],
+    // col 2 — XML to inject
+    [T.draft[0]+600,G.xml[0],G.xml[1]-80,1.4],[T.review[1],G.xml[0],G.xml[1]-80,1.4],
+    // col 3 — STP's questions
+    [T.quest[0]+450,G.q[0]-230,G.q[1]-60,1.45],[T.quest[1],G.q[0]-230,G.q[1]-60,1.45],
+    // wide for confirm · exit · inject
+    [T.clickConf[0]+200,960,540,1.0],[DURATION,960,540,1.0]
   ];
 }
 function pathAt(path,t,dims){
@@ -363,29 +320,11 @@ function pathAt(path,t,dims){
 const curPos=t=>pathAt(CUR,t,[0,0]);
 const camPos=t=>pathAt(CAM,t,[0,0,0]);
 
-// big captions on the screen layer: [t0, t1, html, pos]
-// pos 'b' = bottom (default) · 't' = top, used when the camera parks the
-// footer at the bottom of the frame so the caption must not cover it
-const CAPS=[
-  [2400,5000,'Inside <span class="m">Claude Code</span> — /stp:voice','b'],
-  [5300,6900,'A local popup — <span class="m">127.0.0.1</span>, token-gated','b'],
-  [7600,11400,'Talk it out — <span class="m">any length</span>, out of order is fine','t'],
-  [12000,14400,'Transcribed <span class="m">locally</span> with Whisper','t'],
-  [14700,16800,'Drafted <span class="m">outside your session</span>, grounded in your repo','b'],
-  [17000,19600,'A faithful structure of <span class="m">what you said</span> — nothing invented','b'],
-  [19800,22400,'Flip <span class="m">Grill</span> on — live, mid-review','t'],
-  [22800,25300,'The questions that are <span class="m">expensive to get wrong</span>','b'],
-  [25600,27400,'Answers stay <span class="m">local</span> until you confirm','b'],
-  [28100,31100,'Confirm — answers folded, <span class="m">one validated XML</span>','t'],
-  [32800,36800,'One prompt enters the session — <span class="m">the mess never does</span>','b']
-];
-
 // numbered scenes, for tuning discussion (?play&debug shows the tag)
 const SCENES=[
-  [0,'S1 title card'],[2200,'S2 terminal typing'],[4200,'S3 popup enters'],
-  [6800,'S4 record'],[11800,'S5 transcribe'],[14400,'S6 draft'],
-  [19600,'S7 grill flip'],[22600,'S8 questions + chip'],[27200,'S9 confirm'],
-  [31200,'S10 inject'],[37000,'S11 end card']
+  [0,'C1 terminal typing'],[900,'C2 popup wide'],[2200,'C3 record'],
+  [3400,'C4 col1 · what you said'],[4600,'C5 col2 · xml'],[6600,'C6 col3 · questions'],
+  [8200,'C7 confirm + inject']
 ];
 const DEBUG=new URLSearchParams(location.search).has('debug');
 
@@ -405,7 +344,7 @@ function seek(t){
   // terminal typing
   const CMD='/stp:voice';
   $('typed').textContent = t<T.type[0]?'':(t<T.type[1]?CMD.slice(0,Math.floor(prog(t,T.type[0],T.type[1])*CMD.length)):CMD);
-  $('caret').style.opacity = t<T.enter[0]?((Math.floor(t/500)%2)?0.2:1):0;
+  $('caret').style.opacity = t<T.enter[0]?((Math.floor(t/400)%2)?0.2:1):0;
   $('runline').style.opacity = t>=T.enter[0]?1:0;
 
   // popup window enter/exit
@@ -424,11 +363,9 @@ function seek(t){
   if(seg(t,T.rec[0],T.clickStop[1])) stage='· recording…';
   else if(seg(t,T.stt[0],T.stt[1])) stage='· transcribing… '+Math.round(prog(t,T.stt[0],T.stt[1])*100)+'%';
   else if(seg(t,T.draft[0],T.draft[1])) stage='· drafting';
-  else if(seg(t,T.grilling[0],T.quest[0])) stage='· grilling';
-  else if(seg(t,T.quest[0],T.clickConf[1])) stage='· grill · review';
-  else if(t>=T.validating[0]&&t<T.confirmed[0]) stage='· validating…';
+  else if(seg(t,T.draft[1],T.clickConf[1])) stage='· grill · review';
+  else if(t>=T.clickConf[1]&&t<T.confirmed[0]) stage='· validating…';
   else if(t>=T.confirmed[0]) stage='· confirmed — injected';
-  else if(t>=T.draft[1]) stage='· review';
   $('stage').textContent=stage;
 
   // record button
@@ -441,7 +378,7 @@ function seek(t){
   if(t<T.clickRec[1]) $('transcript').innerHTML='Press <b style="color:var(--text-1)">Record</b> and talk through what you want built.';
   else if(t<T.stt[0]) $('transcript').textContent='(listening…)';
   else{
-    const n=Math.floor(prog(t,T.stt[0]+300,T.stt[1])*SPOKEN.length);
+    const n=Math.floor(prog(t,T.stt[0]+150,T.stt[1]-100)*SPOKEN.length);
     $('transcript').textContent=SPOKEN.slice(0,Math.max(0,n))||'(transcribing…)';
   }
   const sttOn=seg(t,T.stt[0],T.stt[1]);
@@ -456,23 +393,20 @@ function seek(t){
   $('drafting').style.opacity=d1?1:0;
   if(d1) $('ring1').style.transform='rotate('+((t/2.5)%360)+'deg)';
 
-  // questions column
-  const d2=seg(t,T.grilling[0],T.quest[0]);
+  // questions column (grill is on from the start — spinner rides the draft)
+  const d2=seg(t,T.draft[0],T.quest[0]);
   $('drafting-q').style.opacity=d2?1:0;
   if(d2) $('ring2').style.transform='rotate('+((t/2.5)%360)+'deg)';
   const qOn=t>=T.quest[0]&&t<T.exit[0];
-  $('questions').style.opacity=qOn?ease(prog(t,T.quest[0],T.quest[0]+400)):0;
+  $('questions').style.opacity=qOn?ease(prog(t,T.quest[0],T.quest[0]+300)):0;
   $('q-count').textContent=qOn?'3':'0';
   const chipSel=t>=T.clickChip[0]+120;
   $('chip1').className='chip'+(chipSel?' sel':'');
   $('q1').style.opacity=chipSel?0.55:1;
 
-  // grill switch
-  $('grill-sw').className='switch'+(t>=T.clickGrill[0]+120?' on':'');
-
   // confirm / action note
   const note=$('action-note');
-  if(seg(t,T.validating[0],T.confirmed[0])){note.style.opacity=1;note.textContent='Confirm sent — validating…';}
+  if(t>=T.clickConf[1]&&t<T.confirmed[0]){note.style.opacity=1;note.textContent='Confirm sent — validating…';}
   else if(t>=T.confirmed[0]&&t<T.exit[0]){note.style.opacity=1;note.textContent='Confirmed ✓ — injected into the session.';}
   else note.style.opacity=0;
   $('confirm-btn').className='btn primary'+(t>=T.confirmed[0]?' off':'');
@@ -481,15 +415,15 @@ function seek(t){
   // terminal injection
   const inj=$('inj');
   if(t>=T.inject[0]){
-    inj.style.opacity=clamp01(prog(t,T.inject[0],T.inject[0]+350));
-    const n=Math.floor(prog(t,T.inject[0]+250,T.inject[1])*XML_FINAL.length);
+    inj.style.opacity=clamp01(prog(t,T.inject[0],T.inject[0]+250));
+    const n=Math.floor(prog(t,T.inject[0]+150,T.inject[1]-300)*XML_FINAL.length);
     $('injxml').innerHTML=hi(XML_FINAL.slice(0,n));
   } else inj.style.opacity=0;
 
   // cursor + click ripple
   const [ux,uy]=curPos(t);
   $('cursor').style.left=ux+'px';$('cursor').style.top=uy+'px';
-  const clicks=[[T.clickRec,TGT.rec],[T.clickStop,TGT.rec],[T.clickGrill,TGT.grill],[T.clickChip,TGT.chip],[T.clickConf,TGT.conf]];
+  const clicks=[[T.clickRec,TGT.rec],[T.clickStop,TGT.rec],[T.clickChip,TGT.chip],[T.clickConf,TGT.conf]];
   let rp=-1,rx=0,ry=0;
   for(const [c,p] of clicks){const q=prog(t,c[0],c[1]);if(q>0&&q<1){rp=q;rx=p[0];ry=p[1];break;}}
   const rip=$('ripple');
@@ -497,34 +431,13 @@ function seek(t){
     rip.style.left=(rx-sz/2)+'px';rip.style.top=(ry-sz/2)+'px';rip.style.opacity=(1-rp)*0.9;}
   else rip.style.opacity=0;
   $('cursor').style.transform=rp>=0?'scale(0.82)':'scale(1)';
-
-  // captions (screen layer, fade in/out)
-  let capHtml='',capOp=0,capPos='b';
-  for(const [a,b,h,p] of CAPS){
-    if(t>=a&&t<b){capHtml=h;capPos=p;capOp=Math.min(prog(t,a,a+250),1-prog(t,b-250,b));break;}
-  }
-  $('capt').innerHTML=capHtml;
-  $('caption').style.opacity=capOp;
-  $('caption').className=capPos==='t'?'top':'';
-
-  // title cards (opening + closing)
-  const card=$('card');
-  if(t<T.cardIn[1]){
-    card.style.opacity=1-prog(t,T.cardIn[1]-500,T.cardIn[1]);
-    $('card-big').innerHTML='Speech <span class="m">TO</span> Prompt';
-    $('card-sub').innerHTML='voice in · <span class="m">one structured XML prompt</span> out';
-  } else if(t>=T.cardOut[0]){
-    card.style.opacity=prog(t,T.cardOut[0],T.cardOut[0]+700);
-    $('card-big').innerHTML='Speech <span class="m">TO</span> Prompt';
-    $('card-sub').innerHTML='one confirmed XML · <span class="m">zero session pollution</span>';
-  } else card.style.opacity=0;
 }
 
 window.DURATION=DURATION; // window.seek is the global function declaration above
 window.ready=(async()=>{await document.fonts.ready;measure();seek(0);})();
 
 if(new URLSearchParams(location.search).has('play')){
-  window.ready.then(()=>{const t0=performance.now();(function loop(){seek(performance.now()-t0);requestAnimationFrame(loop);})();});
+  window.ready.then(()=>{const t0=performance.now();(function loop(){const t=(performance.now()-t0)%(DURATION+800);seek(t);requestAnimationFrame(loop);})();});
 }
 </script>
 </body>
