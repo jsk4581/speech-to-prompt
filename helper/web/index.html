@@ -40,8 +40,13 @@
 
     <!-- COLUMN 2 : the XML to inject -->
     <section class="col xml-col scroll" data-col="xml">
-      <div class="colh"><span class="label blue">XML to inject</span><span class="spacerflex"></span>
-        <span class="keyhint">editable</span></div>
+      <div class="colh"><span class="label blue">XML to inject</span>
+        <span class="tabs" id="xml-tabs" hidden>
+          <button class="tab" data-action="xml-tab" data-tab="default" type="button">Default</button>
+          <button class="tab sel" data-action="xml-tab" data-tab="enhanced" type="button">Enhanced</button>
+        </span>
+        <span class="spacerflex"></span>
+        <span class="keyhint" id="xml-hint">editable</span></div>
       <div class="legend">
         <span><span class="sw" style="background:rgba(46,160,67,.4);border:1px solid #2EA043"></span>STP proposal</span>
         <span><span class="sw" style="background:var(--surface);border:1px solid var(--border-2)"></span>what you said</span>
@@ -101,12 +106,14 @@
       <button class="btn ghost rec" id="record-btn" data-action="record" type="button" aria-pressed="false">
         <span class="rdot"></span><span data-role="record-label">Record</span>
       </button>
-      <span class="modes" role="group" aria-label="Draft mode" title="Simple = only what you said, structured · Max = STP also proposes defaults">
-        <button class="chip mode" data-action="mode" data-mode="simple" type="button" aria-pressed="false">Simple</button>
-        <button class="chip mode sel" data-action="mode" data-mode="max" type="button" aria-pressed="true">Max</button>
-      </span>
-      <button class="chip grill sel" id="grill-btn" data-action="grill" type="button" aria-pressed="true"
-        title="On = STP asks the few expensive questions · Off = no questions, STP fills the gaps itself">Grill on</button>
+      <label class="switch" title="Off = only your words, structured · On = adds a repo-refined variant in a second tab">
+        <input type="checkbox" id="enhance-toggle" />
+        <span class="track"></span><span class="swlabel">Enhance</span>
+      </label>
+      <label class="switch" title="On = STP asks the few expensive questions · Off = no questions, gaps stay absent">
+        <input type="checkbox" id="grill-toggle" />
+        <span class="track"></span><span class="swlabel">Grill</span>
+      </label>
       <span class="sep"></span>
       <button class="btn primary" id="confirm-btn" data-action="confirm" type="button">Confirm · inject into session →</button>
       <button class="btn ghost" id="cancel-btn" data-action="cancel" type="button">Cancel</button>

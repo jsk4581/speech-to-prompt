@@ -87,9 +87,9 @@ STP_TRANSCRIPT_DIR=<RUN> node "${CLAUDE_PLUGIN_ROOT}/helper/dist/grill.js" \
 
 Use a generous Bash timeout (≈120s). On `{"ready":false}` the user is still
 recording — run it again. On `{"ready":true}` the transcript is in
-`<RUN>/transcript.txt`, and the JSON carries `mode` (`"max"` or `"simple"`)
-and `grill` (`"on"` or `"off"`) — the draft settings the user picked in the
-popup; note both for step 3. Do **not** read the transcript file into this
+`<RUN>/transcript.txt`, and the JSON carries `mode` (`"default"` or
+`"enhance"`) and `grill` (`"on"` or `"off"`) — the draft settings the user
+picked in the popup; note both for step 3. Do **not** read the transcript file into this
 conversation; the drafting subagent reads it directly.
 
 ### 3. Draft, in an isolated subagent
@@ -118,9 +118,11 @@ STP_PORT=<P> STP_TOKEN=<T> STP_TRANSCRIPT_DIR=<RUN> \
   round --draft <RUN>/draft.json --final-out <RUN>/final.xml
 ```
 
-The popup now shows the draft XML and the questions (with grill off the
-draft has none — the round is still published so the user reviews, edits,
-and confirms; the flow below is unchanged). Read the one-line JSON
+The popup now shows the draft XML and the questions. In `enhance` mode the
+XML pane gains two tabs — the faithful default draft and the refined variant
+— and Confirm injects whichever tab the user has open. With grill off the
+draft has no questions — the round is still published so the user reviews,
+edits, and confirms; the flow below is unchanged. Read the one-line JSON
 outcome and act on `status`:
 
 - **`answered`** — it carries `answers`. Spawn the subagent again: have it read
@@ -131,8 +133,8 @@ outcome and act on `status`:
 - **`confirmed` + `"ok":true`** — the user confirmed and the prompt passed the
   invariants. Go to step 5 with `finalOut`.
 - **`confirmed` + `"ok":false`** — the confirmed XML is not injection-ready
-  (`problem` says why, e.g. an unresolved objective mode or a missing success
-  criterion). Tell the user plainly, then resume waiting so they can fix it in
+  (`problem` says why, e.g. an open question slot or an invalid objective
+  mode). Tell the user plainly, then resume waiting so they can fix it in
   the popup and confirm again:
   `… grill.js poll --final-out <RUN>/final.xml`.
 - **`cancelled`** or **`popup_closed`** — the user stopped or closed the popup.
@@ -147,10 +149,6 @@ The model never decides the loop is done — only the user's **Confirm** ends it
 ```bash
 node "${CLAUDE_PLUGIN_ROOT}/helper/dist/inject.js" --in <RUN>/final.xml
 ```
-
-When step 2 reported `mode: "simple"` **and** `grill: "off"`, append
-`--lenient`: that run is a pure dictation-cleanup, so the gate accepts a
-document without an objective mode or success criteria.
 
 Its stdout is the single, validated `<task>` document — the confirmed work order.
 That is the only prompt content from this flow that enters the session. Proceed

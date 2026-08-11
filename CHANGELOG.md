@@ -6,6 +6,27 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.2.0] — 2026-08-11
+
+### Changed
+- Drafting philosophy reform: XML sections are organizers for what you said,
+  not required form fields. A section you gave no material for simply does not
+  exist — no invented references, steps, guardrails, or success criteria.
+  The confirm gate follows suit: it now rejects only real invariant
+  violations (all-caps emphasis, open question slots, an invalid stated
+  objective mode) and accepts any faithful document, however small.
+- Draft modes renamed and redefined: **Default** (was Simple) is the faithful
+  structuring pass and the new default; **Enhance** (was Max) additionally
+  produces a restrained repo-refined variant instead of a free-authoring one.
+  Grill now defaults to **off**.
+- Footer toggles are now sliding on/off switches (Enhance · Grill) instead of
+  chip buttons.
+
+### Added
+- Enhance mode shows two tabs over the XML pane — the default draft and the
+  enhanced variant side by side; hand edits survive tab switches, and Confirm
+  injects whichever tab is open.
+
 ## [0.1.9] — 2026-08-11
 
 ### Changed

@@ -108,8 +108,16 @@ export interface Question {
 export interface GrillDraft {
   /** BCP-47-ish language of the prose, e.g. "ko" | "en". */
   lang?: string;
-  /** Sections in any order; the generator emits them in SECTION_ORDER. */
+  /**
+   * The default draft: a faithful structuring of the user's own words —
+   * sections in any order; the generator emits them in SECTION_ORDER.
+   */
   sections: Section[];
+  /**
+   * Enhance mode only: a second, restrained-refinement variant of the same
+   * draft. The popup shows it in an "Enhanced" tab beside the default one.
+   */
+  enhanced?: Section[];
   /** Open questions for the popup (sidecar; not serialized into the XML). */
   questions: Question[];
 }
@@ -118,14 +126,7 @@ export type Severity = "error" | "warn";
 
 /** A single lint finding against the generator invariants. */
 export interface Violation {
-  rule:
-    | "no-emphasis"
-    | "prefer-positive"
-    | "references-at-top"
-    | "open-question"
-    | "objective-mode"
-    | "missing-success-criteria"
-    | "missing-objective";
+  rule: "no-emphasis" | "prefer-positive" | "references-at-top";
   severity: Severity;
   message: string;
   /** The section the finding applies to, when relevant. */
@@ -259,48 +260,26 @@ export function lintDraft(draft: GrillDraft): Violation[] {
 /**
  * Throw unless the draft is ready to inject into a coding agent:
  *   - no all-caps emphasis (error-level lint),
- *   - <objective mode> resolved to implement | advise,
  *   - no open question slots left,
- *   - <success_criteria> present (a definition of done + self-check).
- * Ordering/positive-phrasing warnings do not block (generate auto-fixes order).
+ *   - a *stated* <objective mode> must be implement | advise ("?" or absent
+ *     simply means the user never said — that is fine).
+ *
+ * Sections are organizers for what the user said, not required form fields: a
+ * document carrying nothing but a lone <context> is injectable. Ordering /
+ * positive-phrasing warnings do not block (generate auto-fixes order).
  */
-export interface InjectableOptions {
-  /**
-   * Pure-dictation contract (simple mode + grill off): the prompt carries only
-   * what the user actually said, so the two normally-required fields —
-   * a resolved <objective mode> and <success_criteria> — may be absent.
-   * Everything else (lint errors, unresolved question slots) still applies.
-   */
-  lenient?: boolean;
-}
-
-export function assertInjectable(draft: GrillDraft, opts: InjectableOptions = {}): void {
+export function assertInjectable(draft: GrillDraft): void {
   const problems = lintDraft(draft)
     .filter((v) => v.severity === "error")
     .map((v) => v.message);
 
-  const objective = getSection(draft, "objective");
-  const mode = objective?.attrs?.mode;
-  if (!opts.lenient) {
-    if (!objective) {
-      problems.push("missing <objective> — state implement vs. advise");
-    } else if (!mode || mode === "?") {
-      problems.push('<objective mode> is unresolved — set "implement" or "advise"');
-    } else if (!OBJECTIVE_MODES.includes(mode as ObjectiveMode)) {
-      problems.push(`invalid <objective mode="${mode}"> — use "implement" or "advise"`);
-    }
-  } else if (mode && mode !== "?" && !OBJECTIVE_MODES.includes(mode as ObjectiveMode)) {
-    // Lenient still rejects a *stated but invalid* mode.
+  const mode = getSection(draft, "objective")?.attrs?.mode;
+  if (mode && mode !== "?" && !OBJECTIVE_MODES.includes(mode as ObjectiveMode)) {
     problems.push(`invalid <objective mode="${mode}"> — use "implement" or "advise"`);
   }
 
   if (draft.sections.some((s) => s.segments.some((seg) => seg.source === "question"))) {
     problems.push("draft still has open question slots — resolve them before injecting");
-  }
-
-  const success = getSection(draft, "success_criteria");
-  if (!opts.lenient && (!success || sectionText(success).trim() === "")) {
-    problems.push("missing <success_criteria> — define done and how to self-verify");
   }
 
   if (problems.length > 0) {
@@ -315,12 +294,6 @@ export interface GenerateOptions {
   indent?: string;
   /** When true, assertInjectable(draft) runs first and throws if not ready. */
   injectionReady?: boolean;
-  /**
-   * Pure-dictation contract (see InjectableOptions): relaxes the gate and,
-   * when the objective mode was never stated, omits the mode attribute
-   * instead of emitting a "?" placeholder into the final document.
-   */
-  lenient?: boolean;
 }
 
 function renderInner(segments: Segment[]): string {
@@ -331,13 +304,13 @@ function renderInner(segments: Segment[]): string {
  * Compile a GrillDraft into one clean <task> XML document.
  *
  * Sections are emitted in SECTION_ORDER (so references land near the top no
- * matter the input order). Empty sections are dropped, except <objective>,
- * which always carries its mode. With injectionReady the draft must pass
+ * matter the input order). Empty sections are dropped — a section the user gave
+ * no content for simply does not exist. With injectionReady the draft must pass
  * assertInjectable first.
  */
 export function generateXml(draft: GrillDraft, opts: GenerateOptions = {}): string {
   const indent = opts.indent ?? "  ";
-  if (opts.injectionReady) assertInjectable(draft, { lenient: opts.lenient });
+  if (opts.injectionReady) assertInjectable(draft);
 
   // First occurrence of each section wins (defensive against duplicates).
   const bySection = new Map<SectionName, Section>();
@@ -349,14 +322,14 @@ export function generateXml(draft: GrillDraft, opts: GenerateOptions = {}): stri
     if (!section) continue;
 
     const body = renderInner(section.segments);
-    if (body.trim() === "" && name !== "objective") continue;
+    if (body.trim() === "") continue;
 
     let attrs = "";
     if (name === "objective") {
       const mode = section.attrs?.mode;
-      // Lenient (pure dictation): a never-stated mode is simply omitted rather
-      // than shipping a "?" placeholder into the injected document.
-      attrs = opts.lenient && (!mode || mode === "?") ? "" : ` mode="${escapeAttr(mode ?? "?")}"`;
+      // A never-stated mode is simply absent. The "?" open-slot marker is shown
+      // while drafting but stripped from the final injected document.
+      if (mode && !(opts.injectionReady && mode === "?")) attrs = ` mode="${escapeAttr(mode)}"`;
     } else if (section.attrs) {
       for (const [k, v] of Object.entries(section.attrs)) attrs += ` ${k}="${escapeAttr(v)}"`;
     }

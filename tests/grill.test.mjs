@@ -50,6 +50,26 @@ test("roundPayload handles a draft with no questions", () => {
   assert.deepEqual(p2.questions[0].chips, []);
 });
 
+test("roundPayload renders the enhanced variant when present", () => {
+  const draft = {
+    sections: [{ name: "context", segments: [{ text: "just my words", source: "said" }] }],
+    enhanced: [
+      { name: "context", segments: [{ text: "just my words", source: "said" }] },
+      { name: "references", segments: [{ text: "src/a.ts", source: "inferred" }] },
+    ],
+    questions: [],
+  };
+  const p = roundPayload(draft);
+  assert.match(p.draftXml, /just my words/);
+  assert.ok(!p.draftXml.includes("<references>"), "default draft stays faithful");
+  assert.match(p.enhancedXml, /<references>/);
+});
+
+test("roundPayload omits enhancedXml when the draft has no enhanced variant", () => {
+  const p = roundPayload({ sections: [], questions: [] });
+  assert.equal(p.enhancedXml, undefined);
+});
+
 // ── finalizeConfirmed ────────────────────────────────────────────────────────
 
 const READY_XML = `<task>
@@ -71,23 +91,28 @@ test("finalizeConfirmed accepts an injection-ready document and normalizes it", 
   assert.equal(again.ok, true);
 });
 
-test("finalizeConfirmed rejects a missing success_criteria", () => {
-  const r = finalizeConfirmed(`<task><objective mode="implement">x</objective></task>`);
-  assert.equal(r.ok, false);
-  assert.match(r.problem, /success_criteria/);
+test("finalizeConfirmed accepts a bare dictation document (no gate-required fields)", () => {
+  const r = finalizeConfirmed(`<task><context>tidy these words up</context></task>`);
+  assert.equal(r.ok, true);
+  assert.match(r.xml, /<context>/);
 });
 
-test("finalizeConfirmed rejects an unresolved objective mode", () => {
-  const r = finalizeConfirmed(
-    `<task><objective mode="?">x</objective><success_criteria>y</success_criteria></task>`,
-  );
+test("finalizeConfirmed strips an unresolved '?' objective mode instead of rejecting", () => {
+  const r = finalizeConfirmed(`<task><objective mode="?">do the thing</objective></task>`);
+  assert.equal(r.ok, true);
+  assert.ok(r.xml.includes("<objective>"), r.xml);
+  assert.ok(!r.xml.includes('mode="?"'), r.xml);
+});
+
+test("finalizeConfirmed rejects a stated but invalid objective mode", () => {
+  const r = finalizeConfirmed(`<task><objective mode="ponder">x</objective></task>`);
   assert.equal(r.ok, false);
-  assert.match(r.problem, /mode/);
+  assert.match(r.problem, /invalid/);
 });
 
 test("finalizeConfirmed rejects all-caps emphasis (generator invariant)", () => {
   const r = finalizeConfirmed(
-    `<task><objective mode="implement">This is CRITICAL work</objective><success_criteria>y</success_criteria></task>`,
+    `<task><objective mode="implement">This is CRITICAL work</objective></task>`,
   );
   assert.equal(r.ok, false);
   assert.match(r.problem, /CRITICAL/);
@@ -107,9 +132,9 @@ test("latestTranscript returns the last usable line's text", () => {
 });
 
 test("latestTranscript passes the draft mode through (and drops junk values)", () => {
-  assert.equal(latestTranscript(`{"text":"t","mode":"simple"}`).mode, "simple");
-  assert.equal(latestTranscript(`{"text":"t","mode":"max"}`).mode, "max");
-  assert.equal(latestTranscript(`{"text":"t","mode":"bogus"}`).mode, undefined);
+  assert.equal(latestTranscript(`{"text":"t","mode":"default"}`).mode, "default");
+  assert.equal(latestTranscript(`{"text":"t","mode":"enhance"}`).mode, "enhance");
+  assert.equal(latestTranscript(`{"text":"t","mode":"max"}`).mode, undefined);
 });
 
 test("latestTranscript passes the grill setting through (and drops junk values)", () => {

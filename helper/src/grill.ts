@@ -38,7 +38,10 @@ import {
 /** The round payload the popup renders (app.js renderRound). */
 export interface RoundPayload {
   stage: string;
+  /** The default draft — a faithful structuring of the user's own words. */
   draftXml: string;
+  /** Enhance mode only: the refined variant, shown in a second popup tab. */
+  enhancedXml?: string;
   /** Note: the popup reads `chips`, while the schema's Question uses `choices`. */
   questions: { id: string; tag: string; text: string; chips: string[] }[];
   /** What the user said — so a popup that (re)connects mid-loop shows the real
@@ -72,7 +75,7 @@ export type Outcome =
  */
 export function roundPayload(draft: GrillDraft, stage?: string): RoundPayload {
   const questions = Array.isArray(draft.questions) ? draft.questions : [];
-  return {
+  const payload: RoundPayload = {
     stage: stage ?? `grill · ${questions.length} question${questions.length === 1 ? "" : "s"}`,
     draftXml: generateXml(draft, { indent: "  " }),
     questions: questions.map((q) => ({
@@ -82,6 +85,13 @@ export function roundPayload(draft: GrillDraft, stage?: string): RoundPayload {
       chips: q.choices ?? [],
     })),
   };
+  if (Array.isArray(draft.enhanced) && draft.enhanced.length > 0) {
+    payload.enhancedXml = generateXml(
+      { lang: draft.lang, sections: draft.enhanced, questions },
+      { indent: "  " },
+    );
+  }
+  return payload;
 }
 
 /**
@@ -92,7 +102,6 @@ export function roundPayload(draft: GrillDraft, stage?: string): RoundPayload {
  */
 export function finalizeConfirmed(
   xml: string,
-  opts: { lenient?: boolean } = {},
 ): { ok: true; xml: string } | { ok: false; problem: string } {
   let draft: GrillDraft;
   try {
@@ -101,7 +110,7 @@ export function finalizeConfirmed(
     return { ok: false, problem: e instanceof Error ? e.message : String(e) };
   }
   try {
-    return { ok: true, xml: generateXml(draft, { injectionReady: true, lenient: opts.lenient }) };
+    return { ok: true, xml: generateXml(draft, { injectionReady: true }) };
   } catch (e) {
     return { ok: false, problem: e instanceof Error ? e.message : String(e) };
   }
@@ -124,7 +133,7 @@ export function latestTranscript(
         return {
           text: obj.text,
           language: typeof obj.language === "string" ? obj.language : undefined,
-          mode: obj.mode === "simple" || obj.mode === "max" ? obj.mode : undefined,
+          mode: obj.mode === "default" || obj.mode === "enhance" ? obj.mode : undefined,
           grill: obj.grill === "on" || obj.grill === "off" ? obj.grill : undefined,
         };
       }
@@ -253,25 +262,11 @@ async function pollLoop(c: Conn, capS: number): Promise<RawOutcome> {
   return { status: "timeout" };
 }
 
-/**
- * Pure-dictation runs (simple mode + grill off, read from the transcript
- * record) get the lenient gate: the two normally-required fields may be
- * absent because nothing the user didn't say is ever added.
- */
-async function isLenientRun(): Promise<boolean> {
-  try {
-    const latest = latestTranscript(await readFile(transcriptFile(), "utf8"));
-    return latest?.mode === "simple" && latest?.grill === "off";
-  } catch {
-    return false;
-  }
-}
-
 /** A confirmed outcome carries the user's (possibly edited) XML — finalize it. */
 async function handleOutcome(out: RawOutcome, finalOut: string | undefined): Promise<Outcome> {
   if (out.status !== "confirmed") return out;
   const raw = typeof out.xml === "string" ? out.xml : "";
-  const fin = finalizeConfirmed(raw, { lenient: await isLenientRun() });
+  const fin = finalizeConfirmed(raw);
   if (!fin.ok) return { status: "confirmed", ok: false, problem: fin.problem };
   const dest = finalOut ?? join(process.env.STP_TRANSCRIPT_DIR ?? tmpdir(), "final.xml");
   await writeFile(dest, fin.xml, "utf8");
@@ -317,7 +312,7 @@ async function cmdTranscript(): Promise<void> {
     const latest = body ? latestTranscript(body) : null;
     if (latest) {
       if (out) await writeFile(out, latest.text, "utf8");
-      emit({ ready: true, out: out ?? null, chars: latest.text.length, language: latest.language ?? null, mode: latest.mode ?? "max", grill: latest.grill ?? "on" });
+      emit({ ready: true, out: out ?? null, chars: latest.text.length, language: latest.language ?? null, mode: latest.mode ?? "default", grill: latest.grill ?? "off" });
       return;
     }
     if (!wait || Date.now() >= deadline) {

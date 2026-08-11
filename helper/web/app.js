@@ -32,6 +32,10 @@ const els = {
   confirmBtn: $("#confirm-btn"),
   cancelBtn: $("#cancel-btn"),
   settingsBtn: $("#settings-btn"),
+  enhanceToggle: $("#enhance-toggle"),
+  grillToggle: $("#grill-toggle"),
+  tabs: $("#xml-tabs"),
+  xmlHint: $("#xml-hint"),
 };
 
 const state = {
@@ -42,6 +46,9 @@ const state = {
   answerTimer: 0,
   /** sample/mock content is shown until the first Record press wipes it */
   samplesCleared: false,
+  /** dual-draft buffers ({default, enhanced}) when an enhance round is active */
+  xmlBuffers: null,
+  activeTab: "default",
 };
 
 // ── helpers ──────────────────────────────────────────────────────────────────
@@ -180,6 +187,28 @@ function clearSamples() {
   if (els.xml) els.xml.textContent = "<!-- your draft appears here after you stop recording -->";
   if (els.questions) els.questions.replaceChildren();
   if (els.qcount) els.qcount.textContent = "0";
+  state.xmlBuffers = null;
+  showTabs(false);
+}
+
+// ── XML tabs (Default | Enhanced — enhance mode only) ───────────────────────
+
+function showTabs(on) {
+  if (els.tabs) els.tabs.hidden = !on;
+  if (els.xmlHint) els.xmlHint.textContent = on ? "editable · Confirm injects the open tab" : "editable";
+  if (!on) return;
+  for (const b of els.tabs.querySelectorAll(".tab")) {
+    b.classList.toggle("sel", b.dataset.tab === state.activeTab);
+  }
+}
+
+function selectTab(tab) {
+  if (!state.xmlBuffers || tab === state.activeTab || !(tab in state.xmlBuffers)) return;
+  // Keep any hand edits: stash the outgoing tab's text before swapping.
+  state.xmlBuffers[state.activeTab] = els.xml.textContent ?? "";
+  state.activeTab = tab;
+  els.xml.textContent = state.xmlBuffers[tab];
+  showTabs(true);
 }
 
 /**
@@ -198,7 +227,20 @@ function renderRound(round) {
     setStage(round.stage);
   }
   if (typeof round.transcript === "string") renderTranscript(round.transcript);
-  if (typeof round.draftXml === "string") els.xml.textContent = round.draftXml;
+  if (typeof round.draftXml === "string") {
+    if (typeof round.enhancedXml === "string") {
+      // Dual draft: buffer both, land on the Enhanced tab (the one the user
+      // opted into); Confirm injects whichever tab is open.
+      state.xmlBuffers = { default: round.draftXml, enhanced: round.enhancedXml };
+      state.activeTab = "enhanced";
+      els.xml.textContent = state.xmlBuffers[state.activeTab];
+      showTabs(true);
+    } else {
+      state.xmlBuffers = null;
+      els.xml.textContent = round.draftXml;
+      showTabs(false);
+    }
+  }
   if (Array.isArray(round.questions)) renderQuestions(round.questions);
 }
 
@@ -356,25 +398,9 @@ function onChipClick(chip) {
   pushAnswers();
 }
 
-/** Pick the draft mode; the helper reads it when the recording is transcribed. */
-function setMode(btn) {
-  const mode = btn.dataset.mode;
-  if (mode !== "simple" && mode !== "max") return;
-  for (const b of document.querySelectorAll(".chip.mode")) {
-    const on = b === btn;
-    b.classList.toggle("sel", on);
-    b.setAttribute("aria-pressed", on ? "true" : "false");
-  }
-  postJson("/mode", { mode }).catch(() => setStage("mode change failed"));
-}
-
-/** Toggle the question loop; off = STP best-guesses instead of asking. */
-function toggleGrill(btn) {
-  const on = !btn.classList.contains("sel");
-  btn.classList.toggle("sel", on);
-  btn.setAttribute("aria-pressed", on ? "true" : "false");
-  btn.textContent = on ? "Grill on" : "Grill off";
-  postJson("/mode", { grill: on ? "on" : "off" }).catch(() => setStage("grill toggle failed"));
+/** Push a draft-setting change; the helper reads them at transcribe time. */
+function pushSettings(patch) {
+  postJson("/mode", patch).catch(() => setStage("settings change failed"));
 }
 
 function cancelSession() {
@@ -422,11 +448,8 @@ function wireEvents() {
       case "confirm":
         confirmAndInject();
         break;
-      case "mode":
-        setMode(actor);
-        break;
-      case "grill":
-        toggleGrill(actor);
+      case "xml-tab":
+        selectTab(actor.dataset.tab);
         break;
       case "cancel":
         cancelSession();
@@ -441,6 +464,14 @@ function wireEvents() {
   document.addEventListener("input", (e) => {
     if (e.target.matches?.("[data-role=answer]")) pushAnswers();
   });
+
+  // Setting switches (footer). Unchecked = the defaults: default mode, grill off.
+  els.enhanceToggle?.addEventListener("change", () =>
+    pushSettings({ mode: els.enhanceToggle.checked ? "enhance" : "default" }),
+  );
+  els.grillToggle?.addEventListener("change", () =>
+    pushSettings({ grill: els.grillToggle.checked ? "on" : "off" }),
+  );
 
   // Leaving the popup mid-grill = cancel (best-effort; SSE close is the backstop).
   window.addEventListener("pagehide", () => {

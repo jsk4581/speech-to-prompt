@@ -492,12 +492,13 @@ export async function startVoiceSession(opts: VoiceSessionOptions): Promise<Voic
   };
   // Draft settings the popup selected, captured at /transcribe time into the
   // transcript record where the agent reads them:
-  //   mode  — "max" = full proposal blend (default), "simple" = faithful
-  //           structuring of the user's own words only.
-  //   grill — "on" (default) runs the question loop; "off" means the drafter
-  //           asks nothing and best-guesses the gate-required fields instead.
-  let draftMode: "simple" | "max" = "max";
-  let grillOn = true;
+  //   mode  — "default" = faithful structuring of the user's own words only
+  //           (the default), "enhance" = additionally draft a restrained
+  //           refined variant, shown in a second popup tab.
+  //   grill — "on" runs the question loop; "off" (the default) means the
+  //           drafter asks nothing — gaps stay absent, never invented.
+  let draftMode: "default" | "enhance" = "default";
+  let grillOn = false;
 
   const resolveAgent = (outcome: AgentOutcome) => {
     if (pending) {
@@ -628,8 +629,8 @@ export async function startVoiceSession(opts: VoiceSessionOptions): Promise<Voic
         return;
       }
       if (body.mode !== undefined) {
-        if (body.mode !== "simple" && body.mode !== "max") {
-          sendJson(res, 400, { error: 'mode must be "simple" or "max"' });
+        if (body.mode !== "default" && body.mode !== "enhance") {
+          sendJson(res, 400, { error: 'mode must be "default" or "enhance"' });
           return;
         }
         draftMode = body.mode;

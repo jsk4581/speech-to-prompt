@@ -90,7 +90,7 @@ test("generateXml writes the objective mode attribute", () => {
   assert.match(xml, /<objective mode="implement">/);
 });
 
-test("generateXml drops empty sections but keeps objective", () => {
+test("generateXml drops empty sections — objective included", () => {
   const draft = {
     sections: [
       { name: "context", segments: [] },
@@ -100,7 +100,20 @@ test("generateXml drops empty sections but keeps objective", () => {
   };
   const xml = generateXml(draft);
   assert.ok(!xml.includes("<context>"), "empty context should be dropped");
-  assert.match(xml, /<objective mode="advise">/);
+  assert.ok(!xml.includes("<objective"), "empty objective should be dropped too");
+});
+
+test("generateXml omits the mode attribute when the user never stated one", () => {
+  const draft = { sections: [{ name: "objective", segments: [seg("tidy this up")] }], questions: [] };
+  assert.ok(generateXml(draft).includes("<objective>"));
+});
+
+test("generateXml keeps the '?' open-slot marker while drafting, strips it at injection", () => {
+  const draft = { sections: [{ name: "objective", attrs: { mode: "?" }, segments: [seg("do")] }], questions: [] };
+  assert.match(generateXml(draft), /<objective mode="\?">/);
+  const final = generateXml(draft, { injectionReady: true });
+  assert.ok(final.includes("<objective>"), final);
+  assert.ok(!final.includes('mode="?"'), final);
 });
 
 test("generateXml escapes content", () => {
@@ -115,9 +128,9 @@ test("generateXml escapes content", () => {
   assert.ok(xml.includes("a &lt; b &amp;&amp; flush"));
 });
 
-test("generateXml({injectionReady}) throws on an unresolved draft", () => {
+test("generateXml({injectionReady}) throws on an open question slot", () => {
   const draft = injectableDraft();
-  getSection(draft, "objective").attrs.mode = "?";
+  getSection(draft, "objective").segments = [{ text: "tbd", source: "question", questionId: "q1" }];
   assert.throws(() => generateXml(draft, { injectionReady: true }), /not injection-ready/);
 });
 
@@ -180,48 +193,22 @@ test("assertInjectable rejects an open question slot", () => {
   assert.throws(() => assertInjectable(draft), /open question/);
 });
 
-test("assertInjectable rejects an unresolved objective mode", () => {
-  const draft = injectableDraft();
-  getSection(draft, "objective").attrs.mode = "?";
-  assert.throws(() => assertInjectable(draft), /objective mode/);
+test("assertInjectable accepts a bare dictation draft — sections are not required fields", () => {
+  const draft = { sections: [{ name: "context", segments: [seg("just cleaned speech")] }], questions: [] };
+  assert.doesNotThrow(() => assertInjectable(draft));
 });
 
-test("assertInjectable rejects an invalid objective mode", () => {
+test("assertInjectable accepts an unstated or '?' objective mode", () => {
+  const unstated = { sections: [{ name: "objective", segments: [seg("do the thing")] }], questions: [] };
+  assert.doesNotThrow(() => assertInjectable(unstated));
+  const open = { sections: [{ name: "objective", attrs: { mode: "?" }, segments: [seg("do")] }], questions: [] };
+  assert.doesNotThrow(() => assertInjectable(open));
+});
+
+test("assertInjectable rejects a stated but invalid objective mode", () => {
   const draft = injectableDraft();
   getSection(draft, "objective").attrs.mode = "ponder";
-  assert.throws(() => assertInjectable(draft), /objective mode/);
-});
-
-test("assertInjectable requires success_criteria", () => {
-  const draft = injectableDraft();
-  draft.sections = draft.sections.filter((s) => s.name !== "success_criteria");
-  assert.throws(() => assertInjectable(draft), /success_criteria/);
-});
-
-test("assertInjectable lenient accepts a bare dictation draft (simple + grill off)", () => {
-  const draft = { sections: [{ name: "context", segments: [seg("just cleaned speech")] }], questions: [] };
-  assert.throws(() => assertInjectable(draft));
-  assert.doesNotThrow(() => assertInjectable(draft, { lenient: true }));
-});
-
-test("assertInjectable lenient still rejects question slots and invalid stated modes", () => {
-  const qdraft = {
-    sections: [{ name: "context", segments: [{ text: "x", source: "question", questionId: "q1" }] }],
-    questions: [],
-  };
-  assert.throws(() => assertInjectable(qdraft, { lenient: true }), /question slots/);
-  const badMode = {
-    sections: [{ name: "objective", attrs: { mode: "nonsense" }, segments: [seg("do")] }],
-    questions: [],
-  };
-  assert.throws(() => assertInjectable(badMode, { lenient: true }), /invalid/);
-});
-
-test("generateXml lenient omits an unstated objective mode instead of emitting '?'", () => {
-  const draft = { sections: [{ name: "objective", segments: [seg("tidy this up")] }], questions: [] };
-  const xml = generateXml(draft, { injectionReady: true, lenient: true });
-  assert.ok(xml.includes("<objective>"), xml);
-  assert.ok(!xml.includes('mode="?"'), xml);
+  assert.throws(() => assertInjectable(draft), /invalid/);
 });
 
 // ── parse (tolerant) ────────────────────────────────────────────────────────
