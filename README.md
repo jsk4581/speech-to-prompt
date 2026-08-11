@@ -71,10 +71,36 @@ tier for your machine) — after that, everything is local and offline-capable.
 
 1. `/stp:voice` — a local popup opens (127.0.0.1 only, per-run token).
 2. Hit record and talk through what you want built (any length; stop when done).
-3. STP transcribes locally, drafts a structured XML task grounded in your repo,
-   and asks the few questions that are expensive to get wrong. Answer or edit
-   inline; proposed guesses are visually marked.
-4. Confirm — exactly one validated XML prompt is injected into your session.
+3. STP transcribes locally and drafts a structured XML task from what you said —
+   and only what you said: a section you gave no material for simply doesn't
+   exist. Two footer toggles set the recipe, and flipping one mid-review
+   redrafts live:
+   - **Enhance** (off by default) — adds a restrained repo-refined variant in a
+     second tab beside the faithful draft; Confirm injects whichever tab is open.
+   - **Grill** (off by default) — STP asks the few questions that are expensive
+     to get wrong (implement vs. advise, scope, success criteria). Answers stay
+     local until you confirm.
+4. Edit the XML directly if you like, then Confirm — your answers are folded
+   in, and exactly one validated XML prompt is injected into your session.
+
+## Permissions & what STP touches
+
+A microphone tool should be explicit about its footprint:
+
+- **Microphone** — captured by *your browser* (getUserMedia) in the local popup;
+  the browser owns the permission prompt. The helper process never opens the
+  mic itself.
+- **Network** — first run only: downloads a prebuilt
+  [whisper.cpp](https://github.com/ggerganov/whisper.cpp/releases) CLI from its
+  official GitHub releases and a Whisper model from the official
+  [`ggerganov/whisper.cpp`](https://huggingface.co/ggerganov/whisper.cpp)
+  HuggingFace repo, into Claude Code's plugin data directory. After that, STP
+  runs fully offline. **Zero telemetry — nothing ever phones home.** BYOK
+  providers make network calls only if you configure a key.
+- **Local server** — binds `127.0.0.1` only, authenticated with a per-run
+  token; no other local process can read your transcript or inject a prompt.
+- **macOS note** — the downloaded whisper binary is unsigned, so Gatekeeper may
+  prompt on first run; allowing it is expected.
 
 ## License
 
