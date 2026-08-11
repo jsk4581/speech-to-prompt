@@ -11,7 +11,6 @@
 ## 구성
 
 ```
-human/             사람 음성 1개 — 아래 "사람 음성" 절 참조
 fixtures/          합성 음성 7개 (macOS `say`, 16 kHz mono 16-bit — 사람 녹음 아님)
   ko_one.wav         한국어 1문장
   ko_pure.wav        한국어 2문장 — 영어 단어 없음 (언어 기본값 실험용)
@@ -34,31 +33,16 @@ ISSUES.md          이슈 초안 17건 + 검증하지 못한 영역
 클립과 영어 클립을 무음으로 이어 붙인 것이라 실제 코드 스위칭과 다릅니다. 그래서 사람
 음성을 하나 따로 두었습니다.
 
-## 사람 음성 — `human/take3-38s.wav`
+## 사람 음성
 
-한국어 문장 사이에 영어 식별자를 섞어 말한 38초입니다. `STP_KEEP_AUDIO=1` 로 헬퍼가
-남긴 캡처를 그대로 옮겼습니다.
+합성 음성만으로는 결론이 어긋납니다. 한국어 TTS는 영어 단어를 한국어 음소로 읽으므로
+"영어 용어는 전부 음차된다"처럼 보이는데, 사람 발화에서는 `lsof`·`ps` 는 라틴 문자로
+살아남고 `fuser`·`helper`·`kill` 만 음차됩니다.
 
-말한 내용(전부 이 저장소 이야기):
-
-> 어, 맥에서는 fuser가 안 돼서 lsof로 바꿔야 되는데, 음… lsof -ti tcp 이렇게 포트로
-> 찾고, 그다음에 그 프로세스 command line 확인해서 우리 helper 맞으면 kill 하는
-> 식으로. 아 그리고 /proc은 맥에 없으니까 ps로 봐야 돼. 지금은 그냥 EADDRINUSE 나면서
-> 죽고, launch.sh가 STP_PORT 고정일 때만 그래. 그 부분 좀 봐줘.
-
-이 파일 하나로 확인되는 것 (`BENCH.md` 4절):
-
-- 식별자 11개 중 기본 설정에서 온전한 것은 3개뿐
-- `launch.sh` → `f.sh` — 철자로 읽은 것도 안전하지 않음
-- `--prompt` 로 `/proc` 과 `command line` 은 복원되지만, `launch.sh` 는 `lsof.sh` 로
-  바뀜 (프롬프트 어휘가 엉뚱한 자리에 끼어드는 부작용)
-- 꼬리 정적이 1.5초뿐이라 환각 조건은 성립하지 않음 (RMS 분석)
-
-```bash
-whisper-cli -m <turbo-model> -f human/take3-38s.wav -l auto -nt -t 5
-whisper-cli -m <turbo-model> -f human/take3-38s.wav -l auto -nt -t 5 \
-  --prompt "fuser, lsof, /proc, ps, kill, whisper-cli, STP_PORT, launch.sh, EADDRINUSE, helper, command line, tcp"
-```
+그래서 한국어 문장 사이에 영어 식별자를 섞은 38초를 따로 녹음해 같은 조건으로 돌렸고,
+결과는 `BENCH.md` 4절에 표로 정리했습니다. **오디오 자체는 저장소에 넣지 않았습니다** —
+개인 음성이라서입니다. 필요하시면 같은 방식으로 한 번 녹음하시면 됩니다(헬퍼를
+`STP_KEEP_AUDIO=1` 로 띄우면 캡처가 런 디렉터리에 남습니다).
 
 ## 실행
 

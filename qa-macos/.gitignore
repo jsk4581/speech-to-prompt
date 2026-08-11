@@ -3,3 +3,6 @@ cases/
 
 # 받아오는 모델 (0.9MB) — README의 링크 참조.
 ggml-silero-*.bin
+
+# 사람 음성 — 저장소에는 넣지 않음 (결과 표는 BENCH.md 4절)
+human/
