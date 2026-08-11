@@ -29,9 +29,22 @@ function pickMimeType() {
   return ""; // let the browser choose its default
 }
 
+const CAPTURE_CONSTRAINTS = {
+  audio: {
+    channelCount: 1,
+    echoCancellation: true,
+    noiseSuppression: true,
+    autoGainControl: true,
+  },
+};
+
 /**
  * Push-to-talk style recorder. `start()` opens the mic; `stop()` resolves to a
  * `{ blob, durationMs }` where blob is an `audio/wav` (16 kHz mono).
+ *
+ * `prewarm()` acquires the stream ahead of the first press: the OS permission
+ * prompt and device spin-up otherwise land inside `start()`, and a user who
+ * starts talking on the press loses their first words to that latency.
  */
 export class Recorder {
   constructor() {
@@ -45,16 +58,21 @@ export class Recorder {
     return this._recorder?.state === "recording";
   }
 
+  _streamLive() {
+    return Boolean(this._stream?.getTracks().some((t) => t.readyState === "live"));
+  }
+
+  /** Open the mic early and hold it so `start()` is instant. Safe to re-call. */
+  async prewarm() {
+    if (this.recording || this._streamLive()) return;
+    this._stream = await navigator.mediaDevices.getUserMedia(CAPTURE_CONSTRAINTS);
+  }
+
   async start() {
     if (this.recording) return;
-    this._stream = await navigator.mediaDevices.getUserMedia({
-      audio: {
-        channelCount: 1,
-        echoCancellation: true,
-        noiseSuppression: true,
-        autoGainControl: true,
-      },
-    });
+    if (!this._streamLive()) {
+      this._stream = await navigator.mediaDevices.getUserMedia(CAPTURE_CONSTRAINTS);
+    }
     this._chunks = [];
     const mimeType = pickMimeType();
     this._recorder = new MediaRecorder(this._stream, mimeType ? { mimeType } : undefined);

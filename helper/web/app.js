@@ -452,6 +452,10 @@ async function main() {
   try {
     await establishSession(token); // token, or the cookie from a prior visit
     connectEvents();
+    // Warm the mic now so the first Record press captures from the first word —
+    // the permission prompt and device open happen here, not mid-sentence. A
+    // denial is not an error yet; pressing Record retries and surfaces it.
+    void state.recorder.prewarm().catch(() => {});
   } catch (err) {
     setStage(token ? "session setup failed" : "no session token — open via the helper");
     renderTranscript(`⚠ ${err.message}`);

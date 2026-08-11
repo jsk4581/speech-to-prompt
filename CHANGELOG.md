@@ -6,6 +6,14 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.1.4] — 2026-08-11
+
+### Changed
+- The microphone is pre-warmed when the popup opens: the permission prompt and
+  device spin-up happen up front, so the first Record press captures from the
+  very first word instead of clipping it.
+- Silenced the popup's favicon 404 console error.
+
 ## [0.1.3] — 2026-08-11
 
 ### Changed
