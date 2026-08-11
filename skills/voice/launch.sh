@@ -39,7 +39,29 @@ echo "run_dir=$RUN"
 echo "$ready"
 echo "popup=$url"
 
-# Best-effort browser open; on headless machines the user opens the URL.
-if command -v xdg-open >/dev/null 2>&1; then (xdg-open "$url" >/dev/null 2>&1 &); fi
-if command -v open >/dev/null 2>&1; then (open "$url" >/dev/null 2>&1 &); fi
+# Trusted HTTPS front (STP_ALLOWED_HOSTS, see server.ts): compose the public
+# URL remote browsers reach the popup at. First listed host wins.
+open_url="$url"
+pub_host=$(printf '%s' "${STP_ALLOWED_HOSTS:-}" | cut -d, -f1 | tr -d ' ')
+if [ -n "$pub_host" ]; then
+  token=${url#*t=}
+  open_url="https://$pub_host/?t=$token"
+  echo "popup_public=$open_url"
+fi
+
+# Best-effort browser open; on headless machines the user opens the URL (or
+# the agent does, via a connected browser tool).
+if command -v xdg-open >/dev/null 2>&1; then (xdg-open "$open_url" >/dev/null 2>&1 &); fi
+if command -v open >/dev/null 2>&1; then (open "$open_url" >/dev/null 2>&1 &); fi
+
+# Opt-in custom opener (STP_OPEN_CMD): a user-supplied command that receives
+# the popup URL — %URL% is substituted, otherwise the URL is appended. For
+# setups where the browser lives on another machine (e.g. ssh <laptop> open).
+if [ -n "${STP_OPEN_CMD:-}" ]; then
+  case "$STP_OPEN_CMD" in
+    *%URL%*) cmd=$(printf '%s' "$STP_OPEN_CMD" | sed "s|%URL%|$open_url|g") ;;
+    *) cmd="$STP_OPEN_CMD $open_url" ;;
+  esac
+  (bash -c "$cmd" >/dev/null 2>&1 &)
+fi
 exit 0

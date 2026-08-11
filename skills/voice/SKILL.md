@@ -24,10 +24,17 @@ this — by the preprocessed command below. Its output follows it:
 !`bash "${CLAUDE_SKILL_DIR}/launch.sh"`
 
 Those lines give you the run directory (`run_dir=<RUN>`), the `STP_READY
-port=<P> token=<T>` line, and the popup URL. **Skip runbook step 1** and use
-these values everywhere `<RUN>`, `<P>`, `<T>` appear. Immediately tell the
-user the popup is up (share the URL in case their browser didn't open it):
-press **Record**, speak, press **Stop** — then go wait for the transcript.
+port=<P> token=<T>` line, and the popup URL — when a `popup_public=` line is
+present, that HTTPS URL is the one remote browsers can reach; prefer it.
+**Skip runbook step 1** and use these values everywhere `<RUN>`, `<P>`, `<T>`
+appear.
+
+Get the popup in front of the user with zero clicks: if a browser-automation
+tool attached to the user's own browser is connected (e.g. Claude in Chrome),
+**open the popup URL in a new tab yourself, immediately — before saying
+anything else**. Only when no such tool is available, share the URL and ask
+them to open it. Either way tell the user: press **Record**, speak, press
+**Stop** — then go wait for the transcript.
 
 Fall back to runbook step 1 only if the block above shows `STP_LAUNCH_ERROR`
 or shows the raw command text instead of its output (preprocessing didn't

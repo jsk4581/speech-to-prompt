@@ -6,6 +6,14 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.1.5] — 2026-08-11
+
+### Changed
+- Zero-click popup on remote-browser setups: the launch step now emits a
+  `popup_public` HTTPS URL when a trusted front is configured, the agent
+  opens the popup itself through a connected browser tool when one exists,
+  and an opt-in `STP_OPEN_CMD` can hand the URL to any custom opener.
+
 ## [0.1.4] — 2026-08-11
 
 ### Changed
