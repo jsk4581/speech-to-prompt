@@ -47,6 +47,9 @@ existing Claude Code session already makes.
   `SameSite=Strict` cookie). `Host`/`Origin` headers are validated.
 - The popup is the only client; the helper self-terminates after idling
   (`STP_IDLE_MS`, default 10 min).
+- Captured audio does not outlive the transcription request. `STP_KEEP_AUDIO=1`
+  opts into keeping each WAV in the run directory instead — the only way to
+  investigate a transcript that came out wrong, and off by default.
 - **Zero telemetry.** No accounts, no external services in the default mode.
   Audio, transcripts, and drafts stay in a per-run temp directory.
 - Downloads (whisper.cpp binary, models) come from upstream release sources on
