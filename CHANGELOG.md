@@ -6,6 +6,14 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.1.6] — 2026-08-11
+
+### Fixed
+- Fixed-port setups (`STP_PORT`): a new `/stp:voice` now supersedes a previous
+  helper still holding the port (e.g. its popup tab was left open) instead of
+  failing to launch. Only processes provably running the STP helper are ever
+  killed.
+
 ## [0.1.5] — 2026-08-11
 
 ### Changed

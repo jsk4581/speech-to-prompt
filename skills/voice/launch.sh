@@ -20,6 +20,23 @@ fi
 
 RUN=$(mktemp -d "${TMPDIR:-/tmp}/stp-voice.XXXXXX") || { echo "STP_LAUNCH_ERROR mktemp failed"; exit 0; }
 
+# Fixed-port setups (STP_PORT): a helper from a previous run may still hold the
+# port — e.g. its popup tab was left open, which keeps it alive by design. A new
+# /stp:voice supersedes it, but only ever kill a process that is provably an
+# STP helper.
+if [ -n "${STP_PORT:-}" ] && [ "${STP_PORT}" != "0" ]; then
+  for pid in $(fuser "${STP_PORT}/tcp" 2>/dev/null); do
+    if tr '\0' ' ' < "/proc/$pid/cmdline" 2>/dev/null | grep -q "helper/dist/index.js"; then
+      kill "$pid" 2>/dev/null
+    fi
+  done
+  # give the socket a moment to free up
+  for _ in 1 2 3 4 5 6 7 8 9 10; do
+    if ! fuser "${STP_PORT}/tcp" >/dev/null 2>&1; then break; fi
+    sleep 0.2
+  done
+fi
+
 STP_TRANSCRIPT_DIR="$RUN" nohup node "$HELPER/dist/index.js" >"$RUN/helper.log" 2>&1 &
 
 ready=""
