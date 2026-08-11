@@ -433,6 +433,10 @@ export async function startVoiceSession(opts: VoiceSessionOptions): Promise<Voic
     opts.transcriptDir ?? process.env.STP_TRANSCRIPT_DIR ?? join(tmpdir(), "stp");
   const idleMs = opts.idleMs ?? (Number(process.env.STP_IDLE_MS) || 10 * 60 * 1000);
   const exitOnIdle = opts.exitOnIdle ?? true;
+  // Opt-in (STP_KEEP_AUDIO): keep the captured WAV in the run directory next to
+  // transcript.jsonl. Off by default — audio does not outlive the request — but a
+  // transcription that came out wrong cannot be investigated without the input.
+  const keepAudio = /^(1|true|yes|on)$/i.test(process.env.STP_KEEP_AUDIO ?? "");
 
   await mkdir(transcriptDir, { recursive: true });
   const transcriptFile = join(transcriptDir, "transcript.jsonl");
@@ -572,7 +576,12 @@ export async function startVoiceSession(opts: VoiceSessionOptions): Promise<Voic
         return;
       }
       const wav = await readBody(req);
-      const tmp = join(tmpdir(), `stp-${Date.now()}-${randomBytes(4).toString("hex")}.wav`);
+      const stamp = `${Date.now()}-${randomBytes(4).toString("hex")}`;
+      // Kept audio lands in the run directory (alongside transcript.jsonl) so the
+      // capture and what whisper made of it can be compared after the fact.
+      const tmp = keepAudio
+        ? join(transcriptDir, `capture-${stamp}.wav`)
+        : join(tmpdir(), `stp-${stamp}.wav`);
       await writeFile(tmp, wav);
       try {
         // plan.threads beats the env default — avoids whisper's `-t 4` default
@@ -589,12 +598,12 @@ export async function startVoiceSession(opts: VoiceSessionOptions): Promise<Voic
         });
         await appendFile(
           transcriptFile,
-          JSON.stringify({ at: new Date().toISOString(), bytes: wav.length, mode: draftMode, grill: grillOn ? "on" : "off", ...result }) + "\n",
+          JSON.stringify({ at: new Date().toISOString(), bytes: wav.length, mode: draftMode, grill: grillOn ? "on" : "off", ...(keepAudio ? { audio: tmp } : {}), ...result }) + "\n",
         );
         hub.broadcast("transcript", { text: result.text, language: result.language });
         sendJson(res, 200, { ...result, bytes: wav.length, mode: draftMode });
       } finally {
-        await unlink(tmp).catch(() => {});
+        if (!keepAudio) await unlink(tmp).catch(() => {});
       }
     },
 
