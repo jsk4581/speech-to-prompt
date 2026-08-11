@@ -134,11 +134,10 @@ draft has no questions — the round is still published so the user reviews,
 edits, and confirms; the flow below is unchanged. Read the one-line JSON
 outcome and act on `status`:
 
-- **`answered`** — it carries `answers`. Spawn the subagent again: have it read
-  its previous `<RUN>/draft.json`, fold in these answers (resolve the questions
-  they settle, set the objective mode once question one is answered), rewrite
-  `<RUN>/draft.json`, and reply with the new question count. Then publish the
-  next round the same way. Repeat.
+- **`answered`** — rare: the popup normally sends answers only with Confirm
+  (see the confirmed case below). If it does arrive, fold like the settings
+  case: the subagent reads `<RUN>/draft.json`, folds the answers in, rewrites
+  it, and you publish the next round.
 - **`settings`** — the user flipped Enhance/Grill mid-round; it carries the
   new `mode` and `grill`. Treat these as the settings from now on (replacing
   step 2's) and redraft like the answered case: the subagent reads its
@@ -152,7 +151,15 @@ outcome and act on `status`:
   server-side, so one redraft may cover several (e.g. enhance *and* grill in
   a single `settings` outcome).
 - **`confirmed` + `"ok":true`** — the user confirmed and the prompt passed the
-  invariants. Go to step 5 with `finalOut`.
+  invariants. When the outcome's `answers` carry any non-null `choice` or
+  `text`, the user answered questions and confirmed in one stroke — fold
+  before injecting: spawn the drafting subagent once more (model per step 3's
+  rule) with `<RUN>/final.xml` (the confirmed document — every user edit in
+  it is law), `<RUN>/draft.json` (for the question texts), and the answers.
+  It rewrites `<RUN>/final.xml` with the answers reflected (e.g. an answered
+  implement-vs-advise sets the objective mode; an answered scope question
+  lands in the fitting section) and changes nothing the user wrote. Then go
+  to step 5 with `finalOut`. With no real answers, go straight to step 5.
 - **`confirmed` + `"ok":false`** — the confirmed XML is not injection-ready
   (`problem` says why, e.g. an open question slot or an invalid objective
   mode). Tell the user plainly, then resume waiting so they can fix it in

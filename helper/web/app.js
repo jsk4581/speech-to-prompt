@@ -46,7 +46,6 @@ const state = {
   /** the grill round currently shown (set by SSE 'round'); null = no agent loop yet */
   activeRound: null,
   events: null,
-  answerTimer: 0,
   /** sample/mock content is shown until the first Record press wipes it */
   samplesCleared: false,
   /** dual-draft buffers ({default, enhanced}) when an enhance round is active */
@@ -428,23 +427,6 @@ function collectAnswers() {
   return out;
 }
 
-/** Send answers back to the agent — only while a real round is active. */
-function pushAnswers() {
-  if (!state.activeRound) return; // sample questions in the default View are local
-  clearTimeout(state.answerTimer);
-  state.answerTimer = setTimeout(() => {
-    if (!state.activeRound) return; // confirm/cancel landed while debouncing
-    postJson("/answer", { answers: collectAnswers() })
-      .then(() => {
-        // Keep the loop visibly alive: the agent is folding the answers in and
-        // will push the next round; nothing here is done silently.
-        setStage("answers sent — folding them in…");
-        markAnswered();
-      })
-      .catch(() => setStage("answer failed"));
-  }, 800);
-}
-
 /** Dim question cards that already carry an answer, so progress is visible. */
 function markAnswered() {
   for (const box of els.questions.querySelectorAll(".qbox")) {
@@ -455,7 +437,8 @@ function markAnswered() {
 }
 
 function onChipClick(chip) {
-  // single-select within a question card
+  // Single-select within a question card. Purely local state — answers travel
+  // to the agent only with Confirm, never on their own.
   const group = chip.closest(".chips");
   if (group) {
     for (const c of group.querySelectorAll(".chip")) {
@@ -464,7 +447,7 @@ function onChipClick(chip) {
       c.setAttribute("aria-pressed", on ? "true" : "false");
     }
   }
-  pushAnswers();
+  markAnswered();
 }
 
 /** Push a draft-setting change. Before a recording it just sets the recipe;
@@ -566,9 +549,9 @@ function wireEvents() {
     }
   });
 
-  // Typed answers also flow back to the agent (debounced) while a round is active.
+  // Typed answers are local too (sent with Confirm); just keep the dim state fresh.
   document.addEventListener("input", (e) => {
-    if (e.target.matches?.("[data-role=answer]")) pushAnswers();
+    if (e.target.matches?.("[data-role=answer]")) markAnswered();
   });
 
   // Setting switches (footer). Unchecked = the defaults: default mode, grill off.

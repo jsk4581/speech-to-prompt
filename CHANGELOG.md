@@ -6,6 +6,15 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.2.9] — 2026-08-11
+
+### Changed
+- Answering questions is now purely local: selecting a chip or typing an
+  answer triggers nothing on its own (0.2.8's auto-send with debounce is
+  gone). Everything happens at Confirm — the answers travel with the
+  confirmed XML, the agent folds them into the final document (an answered
+  implement-vs-advise sets the objective mode), and only then injects.
+
 ## [0.2.8] — 2026-08-11
 
 ### Fixed

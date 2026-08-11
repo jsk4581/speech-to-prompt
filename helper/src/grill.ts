@@ -63,7 +63,7 @@ type RawOutcome =
 /** The finalized outcome emitted to the agent (confirmed XML validated to a file). */
 export type Outcome =
   | { status: "answered"; answers?: unknown[]; [k: string]: unknown }
-  | { status: "confirmed"; ok: true; finalOut: string }
+  | { status: "confirmed"; ok: true; finalOut: string; answers?: unknown }
   | { status: "confirmed"; ok: false; problem: string }
   | { status: "settings"; mode?: string; grill?: string }
   | { status: "cancelled" }
@@ -278,7 +278,11 @@ async function handleOutcome(out: RawOutcome, finalOut: string | undefined): Pro
   if (!fin.ok) return { status: "confirmed", ok: false, problem: fin.problem };
   const dest = finalOut ?? join(process.env.STP_TRANSCRIPT_DIR ?? tmpdir(), "final.xml");
   await writeFile(dest, fin.xml, "utf8");
-  return { status: "confirmed", ok: true, finalOut: dest };
+  // Answers ride along with the confirm (the popup never sends them on their
+  // own) — pass them through so the agent can fold them before injecting.
+  const res: Outcome = { status: "confirmed", ok: true, finalOut: dest };
+  if (out.answers !== undefined) res.answers = out.answers;
+  return res;
 }
 
 /**
