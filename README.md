@@ -13,6 +13,8 @@ to produce a single, confirmed, structured XML prompt for your coding agent —
 instead of pasting raw, rambling dictation. That goes for new tasks and for the
 fifteen corrections you owe your agent after reviewing its work.
 
+![The STP popup: what you said · the XML to inject · STP's questions](docs/popup.png)
+
 ## When to reach for it
 
 - **Kicking off a task.** Your plan is half-formed and talking it out is how
