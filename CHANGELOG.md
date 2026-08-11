@@ -6,6 +6,14 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.1.1] — 2026-08-11
+
+### Changed
+- `/stp:voice` now launches the helper and opens the popup the instant the
+  skill is invoked (inline preprocessed launch script), instead of after the
+  agent works through the runbook — the popup is up before the model produces
+  its first token. First-run helper build happens inside the same launch step.
+
 ## [0.1.0] — 2026-08-10
 
 Initial pre-release.

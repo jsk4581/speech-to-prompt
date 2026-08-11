@@ -1,6 +1,7 @@
 ---
 name: voice
 description: Capture spoken intent and compile it into one structured XML coding-agent prompt. Launches a local voice popup, transcribes locally with Whisper, runs a repo-grounded grill loop, then injects the single confirmed XML.
+allowed-tools: Bash(bash "${CLAUDE_SKILL_DIR}/launch.sh")
 ---
 
 # /stp:voice — Speech → Prompt
@@ -14,6 +15,23 @@ The popup is the surface the user works in; this session is the brain that draft
 raw speech-to-text and draft XML **in files**, never pasted into this
 conversation — only the compact question/answer exchange and the one confirmed
 XML belong here.
+
+## Helper launch (already done)
+
+The helper was started the instant this skill was invoked — before you read
+this — by the preprocessed command below. Its output follows it:
+
+!`bash "${CLAUDE_SKILL_DIR}/launch.sh"`
+
+Those lines give you the run directory (`run_dir=<RUN>`), the `STP_READY
+port=<P> token=<T>` line, and the popup URL. **Skip runbook step 1** and use
+these values everywhere `<RUN>`, `<P>`, `<T>` appear. Immediately tell the
+user the popup is up (share the URL in case their browser didn't open it):
+press **Record**, speak, press **Stop** — then go wait for the transcript.
+
+Fall back to runbook step 1 only if the block above shows `STP_LAUNCH_ERROR`
+or shows the raw command text instead of its output (preprocessing didn't
+run).
 
 ## What gets run
 
@@ -33,7 +51,7 @@ shell state does not persist between commands.
 
 ## Runbook
 
-### 1. Launch the helper
+### 1. Launch the helper (fallback — normally already done above)
 
 Pick a fresh run directory, then start the helper **in the background** and read
 its first stdout line for the port and token:
