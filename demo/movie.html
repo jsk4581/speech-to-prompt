@@ -1,0 +1,429 @@
+<!doctype html>
+<!--
+  STP demo screencast scene — deterministic timeline.
+  window.seek(t) renders the exact frame for time t (ms); window.DURATION ends it.
+  Open with ?play for a live preview; demo/shoot.mjs steps seek() per frame and
+  screenshots each one, then ffmpeg assembles the GIF. No real audio/LLM runs —
+  the scene replays a scripted session that mirrors the real popup's behavior.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<style>
+@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css');
+:root{
+  --bg:#1F1F1F; --chrome:#181818; --surface:#252526; --surface-2:#313131;
+  --editor:#1E1E1E; --xml-bg:#1A1A1A;
+  --border:#2B2B2B; --border-2:#3C3C3C;
+  --text-1:#CCCCCC; --text-2:#9D9D9D; --text-3:#6E6E6E;
+  --accent:#0078D4; --sel-bg:rgba(36,137,219,.22); --sel-border:#2488DB;
+  --code:#D4D4D4; --punct:#808080; --tag:#569CD6; --attr:#9CDCFE; --str:#CE9178;
+  --comment:#6A9955; --red:#F85149; --green:#2EA043;
+  --ui:'Pretendard',-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
+  --mono:ui-monospace,Menlo,Monaco,Consolas,'Droid Sans Mono','Courier New',monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:1920px;height:1080px;overflow:hidden;background:#141414}
+body{font-family:var(--ui);color:var(--text-1);letter-spacing:-.01em;-webkit-font-smoothing:antialiased;
+  background:
+    radial-gradient(1100px 700px at 8% -6%, rgba(0,120,212,.10), transparent 60%),
+    radial-gradient(900px 640px at 104% 108%, rgba(86,156,214,.07), transparent 55%),
+    #141414;}
+#scene{position:relative;width:1920px;height:1080px}
+
+/* ── Claude Code terminal ── */
+#terminal{position:absolute;left:150px;top:150px;width:1180px;height:760px;
+  background:#0D0F12;border:1px solid var(--border);border-radius:14px;overflow:hidden;
+  box-shadow:0 30px 70px rgba(0,0,0,.5)}
+.tbar{height:46px;display:flex;align-items:center;gap:9px;padding:0 16px;border-bottom:1px solid var(--border);background:#121418}
+.tbar .c{width:12px;height:12px;border-radius:50%}
+.tbar .c.r{background:#F87171}.tbar .c.y{background:#F5B14E}.tbar .c.g{background:#54C77B}
+.tbar .ttl{margin-left:12px;font-size:14px;color:var(--text-3);font-weight:600}
+.tbody{padding:24px 28px;font-family:var(--mono);font-size:19px;line-height:1.85;color:var(--text-2)}
+.tbody .muted{color:var(--text-3)}
+.tbody .gp{color:var(--accent);font-weight:600}
+.row{white-space:pre-wrap}
+#typed{color:var(--text-1)}
+.caret{display:inline-block;width:10px;height:22px;background:var(--accent);vertical-align:-4px;margin-left:2px}
+#inj{margin-top:6px}
+#inj .xnote{color:#4DAAFC}
+#inj pre{font-family:var(--mono);font-size:16.5px;line-height:1.6;white-space:pre-wrap;color:var(--code)}
+
+/* ── popup browser window (the real STP popup, reproduced) ── */
+#popupwin{position:absolute;left:210px;top:66px;width:1560px;height:918px;
+  border:1px solid var(--border-2);border-radius:12px;overflow:hidden;
+  box-shadow:0 50px 110px rgba(0,0,0,.62),0 0 0 1px rgba(255,255,255,.02);background:var(--bg)}
+.bbar{height:38px;display:flex;align-items:center;gap:9px;padding:0 14px;background:#101010;border-bottom:1px solid var(--border)}
+.bbar .c{width:11px;height:11px;border-radius:50%}
+.bbar .url{margin-left:10px;font-size:12.5px;color:var(--text-3);font-family:var(--mono);
+  background:#1B1B1B;border:1px solid var(--border);border-radius:6px;padding:4px 12px}
+#app{display:flex;flex-direction:column;height:880px}
+.pchrome{display:flex;align-items:center;gap:9px;padding:10px 14px;background:var(--chrome);border-bottom:1px solid var(--border)}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--accent)}
+.brand{font-size:13px;font-weight:600}
+.stage{font-size:12.5px;font-weight:500;color:var(--text-2)}
+.split{flex:1;display:grid;grid-template-columns:minmax(230px,1fr) minmax(0,1.7fr) minmax(270px,1.2fr);min-height:0}
+.col{overflow:hidden;padding:16px;position:relative}
+.col + .col{border-left:1px solid var(--border)}
+.said-col{background:var(--chrome)}.xml-col{background:var(--editor)}.q-col{background:var(--chrome)}
+.colh{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.label{font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-2)}
+.label.blue{color:var(--attr)}
+.spacerflex{flex:1}
+.keyhint{font-size:10.5px;color:var(--text-3)}
+.said{background:var(--surface);border:1px solid var(--border);border-radius:6px;
+  padding:11px 13px;font-size:13px;line-height:1.6;color:var(--text-2)}
+.sttbar{display:block;width:100%;height:4px;border-radius:2px;background:var(--surface-2);overflow:hidden;margin-bottom:10px}
+.sttbar .fill{display:block;height:100%;width:0;background:var(--accent);border-radius:2px}
+pre.xml{font-family:var(--mono);font-size:12.5px;line-height:1.7;white-space:pre-wrap;
+  color:var(--code);border:1px solid var(--border);border-radius:6px;background:var(--xml-bg);padding:14px 15px}
+.p{color:var(--punct)}.tag{color:var(--tag)}.attr{color:var(--attr)}.str{color:var(--str)}.cmt{color:var(--comment)}
+.drafting{position:absolute;inset:0;z-index:2;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:11px;background:rgba(30,30,30,.72);opacity:0}
+.ring{width:34px;height:34px;border-radius:50%;border:3px solid var(--surface-2);border-top-color:var(--accent)}
+.dtext{font-size:11.5px;color:var(--text-2)}
+.qbox{background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--accent);
+  border-radius:5px;padding:12px 13px;margin-bottom:10px}
+.qtop{display:flex;gap:8px;align-items:center;margin-bottom:7px}
+.qmark{color:var(--accent);font-weight:700;font-size:13px}
+.qnum{font-size:9.5px;font-weight:700;color:#fff;background:var(--accent);border-radius:5px;padding:1px 6px}
+.qtag{font-size:11px;color:var(--text-3)}
+.qtext{font-size:13px;color:var(--text-1);margin-bottom:10px;line-height:1.5}
+.chips{display:flex;gap:7px;flex-wrap:wrap}
+.chip{font-size:12px;padding:6px 12px;border-radius:5px;border:1px solid var(--border-2);
+  background:var(--surface-2);color:var(--text-1)}
+.chip.sel{border-color:var(--sel-border);background:var(--sel-bg);color:#fff}
+code{font-family:var(--mono);font-size:.92em;color:var(--attr)}
+.footer{border-top:1px solid var(--border);padding:11px 14px;background:var(--chrome);display:flex;justify-content:center}
+.actions{display:flex;align-items:center;gap:9px;position:relative}
+.btn{min-height:42px;border-radius:8px;font-family:var(--ui);font-size:13px;font-weight:600;
+  display:inline-flex;align-items:center;justify-content:center;gap:7px;
+  border:1px solid var(--border-2);background:var(--surface-2);color:var(--text-1);padding:0 16px}
+.btn.ghost{background:transparent;color:var(--text-2)}
+.btn.rec.on{color:var(--red);border-color:rgba(248,81,73,.4);background:rgba(248,81,73,.08)}
+.btn.primary{background:var(--accent);color:#fff;border-color:var(--accent);padding:0 40px}
+.btn.off{opacity:.45}
+.rdot{width:8px;height:8px;border-radius:50%;background:currentColor}
+.switch{position:relative;display:inline-flex;align-items:center;justify-content:center;
+  height:28px;width:104px;padding:0 20px;border-radius:14px;border:1px solid var(--border-2);background:var(--surface-2)}
+.switch .swlabel{font-size:11px;font-weight:600;color:var(--text-3)}
+.switch .knob{position:absolute;left:5px;top:50%;margin-top:-8px;width:16px;height:16px;border-radius:50%;background:var(--text-3)}
+.switch.on{background:var(--sel-bg);border-color:var(--sel-border)}
+.switch.on .swlabel{color:#fff}
+.switch.on .knob{left:calc(100% - 21px);background:#fff}
+.sep{width:1px;height:22px;background:var(--border-2);margin:0 5px}
+.action-note{position:absolute;right:0;bottom:calc(100% + 9px);font-size:11.5px;
+  color:var(--text-1);background:var(--surface-2);border:1px solid var(--border-2);
+  border-radius:6px;padding:6px 11px;max-width:440px;text-align:right;opacity:0}
+
+/* ── cursor · ripple · caption ── */
+#cursor{position:absolute;width:30px;height:30px;left:0;top:0;z-index:50;pointer-events:none;
+  filter:drop-shadow(0 2px 5px rgba(0,0,0,.55))}
+#ripple{position:absolute;width:10px;height:10px;border-radius:50%;border:2px solid #4DAAFC;opacity:0;z-index:49}
+#caption{position:absolute;left:0;width:1920px;bottom:34px;text-align:center;z-index:60}
+#caption .cap{display:inline-block;font-size:24px;font-weight:700;color:var(--text-1);background:rgba(16,16,16,.82);
+  border:1px solid var(--border-2);border-radius:12px;padding:13px 28px;letter-spacing:-.02em}
+#caption .cap .m{color:#4DAAFC}
+</style>
+</head>
+<body>
+<div id="scene">
+
+  <div id="terminal">
+    <div class="tbar"><span class="c r"></span><span class="c y"></span><span class="c g"></span>
+      <span class="ttl">Claude Code — ~/work/webapp</span></div>
+    <div class="tbody">
+      <div class="row muted">Keep the session context clean:</div>
+      <div class="row muted">refine your voice <b style="color:var(--text-1)">outside</b> the session with <span class="gp">/stp:voice</span>.</div>
+      <div class="row" style="height:14px"></div>
+      <div class="row"><span class="gp">❯</span> <span id="typed"></span><span class="caret" id="caret"></span></div>
+      <div class="row" id="runline" style="opacity:0">  <span class="muted">→ helper up · popup opened (127.0.0.1 · token-gated)</span></div>
+      <div id="inj" style="opacity:0">
+        <div class="row"><span class="xnote">← one confirmed XML injected</span> <span class="muted">(drafts &amp; raw speech never enter)</span></div>
+        <pre id="injxml"></pre>
+      </div>
+    </div>
+  </div>
+
+  <div id="popupwin">
+    <div class="bbar"><span class="c" style="background:#F87171"></span><span class="c" style="background:#F5B14E"></span><span class="c" style="background:#54C77B"></span>
+      <span class="url">127.0.0.1:7457</span></div>
+    <div id="app">
+      <div class="pchrome"><span class="dot"></span><span class="brand">Speech-To-Prompt</span>
+        <span class="stage" id="stage">· capture</span></div>
+      <div class="split">
+        <section class="col said-col">
+          <div class="colh"><span class="label">What you said</span></div>
+          <div class="sttbar" id="sttbar" style="display:none"><span class="fill" id="sttfill"></span></div>
+          <div class="said" id="transcript">Press <b style="color:var(--text-1)">Record</b> and talk through what you want built.</div>
+        </section>
+        <section class="col xml-col">
+          <div class="drafting" id="drafting"><span class="ring" id="ring1"></span><span class="dtext">drafting the prompt…</span></div>
+          <div class="colh"><span class="label blue">XML to inject</span><span class="spacerflex"></span><span class="keyhint">editable</span></div>
+          <pre class="xml" id="xml-editor"></pre>
+        </section>
+        <section class="col q-col">
+          <div class="drafting" id="drafting-q"><span class="ring" id="ring2"></span><span class="dtext">grilling…</span></div>
+          <div class="colh"><span class="label">STP's questions <span id="q-count" style="color:var(--accent)">0</span></span></div>
+          <div id="questions" style="opacity:0">
+            <div class="qbox" id="q1">
+              <div class="qtop"><span class="qmark">?</span><span class="qnum">Q1</span><span class="qtag">Implement vs. advise</span></div>
+              <div class="qtext">Should STP implement the Google OAuth directly, or just propose the approach?</div>
+              <div class="chips"><span class="chip" id="chip1">Implement it</span><span class="chip">Just advise</span></div>
+            </div>
+            <div class="qbox">
+              <div class="qtop"><span class="qmark">?</span><span class="qnum">Q2</span><span class="qtag">Scope · files</span></div>
+              <div class="qtext">Create a new callback route, or add to the existing <code>src/api/auth/</code>?</div>
+              <div class="chips"><span class="chip">New route</span><span class="chip">Add to existing</span><span class="chip">You decide</span></div>
+            </div>
+            <div class="qbox">
+              <div class="qtop"><span class="qmark">?</span><span class="qnum">Q3</span><span class="qtag">Edge case</span></div>
+              <div class="qtext">If an account already exists with the same email, handle the conflict too?</div>
+              <div class="chips"><span class="chip">Include it</span><span class="chip">Skip</span></div>
+            </div>
+          </div>
+        </section>
+      </div>
+      <div class="footer">
+        <div class="actions">
+          <button class="btn ghost rec" id="record-btn"><span class="rdot" id="rdot"></span><span id="rec-label">Record</span></button>
+          <span class="switch" id="enh-sw"><span class="swlabel">Enhance</span><span class="knob"></span></span>
+          <span class="switch" id="grill-sw"><span class="swlabel">Grill</span><span class="knob"></span></span>
+          <span class="sep"></span>
+          <button class="btn primary" id="confirm-btn">Confirm · inject into session →</button>
+          <button class="btn ghost" id="cancel-btn">Cancel</button>
+          <span class="action-note" id="action-note"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="ripple"></div>
+  <svg id="cursor" viewBox="0 0 24 24" width="30" height="30"><path d="M5 3l14 7-6 1.6L9.6 18z" fill="#fff" stroke="#141414" stroke-width="1.4" stroke-linejoin="round"/></svg>
+  <div id="caption"><span class="cap" id="capt"></span></div>
+</div>
+
+<script>
+// ── content ──────────────────────────────────────────────────────────────────
+const SPOKEN = '“uh… add Google OAuth to the login page. if there’s no account just create one automatically. oh and if login fails show the error in a toast. hmm, cookies for the session should be fine I think.”';
+
+const XML_DRAFT = `<!-- drafted by STP · grounded in your repo -->
+<task>
+  <context>
+    Add Google OAuth to the login page. Auto-create an account
+    when none exists; show a toast on login failure. Keep the
+    session in cookies.
+  </context>
+
+  <references>
+    src/pages/login.tsx, src/auth/, src/components/Toast.tsx
+  </references>
+
+  <objective> Wire Google OAuth end to end </objective>
+</task>`;
+
+const XML_FINAL = `<task>
+  <context>
+    Add Google OAuth to the login page. Auto-create an account
+    when none exists; show a toast on login failure. Keep the
+    session in cookies.
+  </context>
+  <references>
+    src/pages/login.tsx, src/auth/, src/components/Toast.tsx
+  </references>
+  <objective mode="implement"> Wire Google OAuth end to end </objective>
+</task>`;
+
+const PLACEHOLDER = '<!-- your draft appears here after you stop recording -->';
+
+// same tiny highlighter as the real popup (helper/web/app.js)
+const esc = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+function hiAttrs(s){
+  const re=/([\w:.-]+)(\s*=\s*)("[^"]*"|'[^']*')/g;let out='',last=0,m;
+  while((m=re.exec(s))){out+=esc(s.slice(last,m.index));
+    out+=`<span class="attr">${esc(m[1])}</span><span class="p">${esc(m[2])}</span><span class="str">${esc(m[3])}</span>`;
+    last=re.lastIndex;}
+  return out+esc(s.slice(last));
+}
+function hi(src){
+  const re=/(<!--[\s\S]*?(?:-->|$))|(<\/?)([A-Za-z][\w:.-]*)((?:"[^"]*"|'[^']*'|[^>"'])*)(\/?>)/g;
+  let out='',last=0,m;
+  while((m=re.exec(src))){out+=esc(src.slice(last,m.index));
+    if(m[1]) out+=`<span class="cmt">${esc(m[1])}</span>`;
+    else out+=`<span class="p">${esc(m[2])}</span><span class="tag">${esc(m[3])}</span>${hiAttrs(m[4])}<span class="p">${esc(m[5])}</span>`;
+    last=re.lastIndex;}
+  return out+esc(src.slice(last));
+}
+
+// ── timeline (ms) ────────────────────────────────────────────────────────────
+const T={
+  type:[700,2200], enter:[2400,3000], idle:[3000,4400],
+  clickRec:[4400,4650], rec:[4650,8300], clickStop:[8300,8550],
+  stt:[8550,10500], draft:[10500,12400], review:[12400,14200],
+  clickGrill:[14200,14450], grilling:[14450,16100], quest:[16100,17600],
+  clickChip:[17600,17850], answered:[17850,19100],
+  clickConf:[19100,19350], validating:[19350,20500], confirmed:[20500,22100],
+  exit:[22100,22700], inject:[22700,25100], hold:[25100,27200]
+};
+const DURATION=27200;
+
+const clamp01=v=>v<0?0:v>1?1:v;
+const prog=(t,a,b)=>clamp01((t-a)/(b-a));
+const seg=(t,a,b)=>t>=a&&t<b;
+const ease=x=>x<0.5?2*x*x:1-Math.pow(-2*x+2,2)/2;
+const lerp=(a,b,x)=>a+(b-a)*x;
+const $=id=>document.getElementById(id);
+
+// cursor targets, measured from the real layout once fonts settle
+let TGT={rec:[960,980],grill:[960,980],chip:[1500,300],conf:[1150,980]};
+function measure(){
+  const c=el=>{const r=el.getBoundingClientRect();return [r.left+r.width/2,r.top+r.height/2];};
+  TGT={rec:c($('record-btn')),grill:c($('grill-sw')),chip:c($('chip1')),conf:c($('confirm-btn'))};
+  buildPath();
+}
+let CUR=[];
+function buildPath(){
+  CUR=[
+    [0,860,620],[2400,860,620],
+    [3200,TGT.rec[0],TGT.rec[1]-120],
+    [T.clickRec[0]-150,TGT.rec[0],TGT.rec[1]],[T.clickStop[1],TGT.rec[0],TGT.rec[1]],
+    [T.stt[1],700,520],[T.review[0]+400,880,470],[T.review[1]-200,880,470],
+    [T.clickGrill[0]-120,TGT.grill[0],TGT.grill[1]],[T.clickGrill[1]+250,TGT.grill[0],TGT.grill[1]],
+    [T.quest[0]+500,TGT.chip[0],TGT.chip[1]-60],
+    [T.clickChip[0]-100,TGT.chip[0],TGT.chip[1]],[T.clickChip[1]+300,TGT.chip[0],TGT.chip[1]],
+    [T.clickConf[0]-120,TGT.conf[0],TGT.conf[1]],[T.clickConf[1]+300,TGT.conf[0],TGT.conf[1]],
+    [T.exit[1],700,600],[DURATION,700,600]
+  ];
+}
+function curPos(t){
+  for(let i=0;i<CUR.length-1;i++){
+    const [t0,x0,y0]=CUR[i],[t1,x1,y1]=CUR[i+1];
+    if(t>=t0&&t<=t1){const x=ease(prog(t,t0,t1));return [lerp(x0,x1,x),lerp(y0,y1,x)];}
+  }
+  const L=CUR[CUR.length-1];return [L[1],L[2]];
+}
+
+function seek(t){
+  t=Math.max(0,Math.min(DURATION,t));
+
+  // terminal typing
+  const CMD='/stp:voice';
+  $('typed').textContent = t<T.type[0]?'':(t<T.type[1]?CMD.slice(0,Math.floor(prog(t,T.type[0],T.type[1])*CMD.length)):CMD);
+  $('caret').style.opacity = t<T.enter[0]?((Math.floor(t/500)%2)?0.2:1):0;
+  $('runline').style.opacity = t>=T.enter[0]?1:0;
+
+  // popup window enter/exit
+  const pop=$('popupwin');
+  let op=0,ty=26,sc=0.97;
+  if(t<T.enter[0]){op=0;}
+  else if(t<T.enter[1]){const x=ease(prog(t,T.enter[0],T.enter[1]));op=x;ty=26*(1-x);sc=0.97+0.03*x;}
+  else if(t<T.exit[0]){op=1;ty=0;sc=1;}
+  else if(t<T.exit[1]){const x=ease(prog(t,T.exit[0],T.exit[1]));op=1-x;ty=-20*x;sc=1-0.02*x;}
+  else{op=0;}
+  pop.style.opacity=op;
+  pop.style.transform=`translateY(${ty}px) scale(${sc})`;
+
+  // header stage
+  let stage='· capture';
+  if(seg(t,T.rec[0],T.clickStop[1])) stage='· recording…';
+  else if(seg(t,T.stt[0],T.stt[1])) stage='· transcribing… '+Math.round(prog(t,T.stt[0],T.stt[1])*100)+'%';
+  else if(seg(t,T.draft[0],T.draft[1])) stage='· drafting';
+  else if(seg(t,T.grilling[0],T.quest[0])) stage='· grilling';
+  else if(seg(t,T.quest[0],T.clickConf[1])) stage='· grill · review';
+  else if(t>=T.validating[0]&&t<T.confirmed[0]) stage='· validating…';
+  else if(t>=T.confirmed[0]) stage='· confirmed — injected';
+  else if(t>=T.draft[1]) stage='· review';
+  $('stage').textContent=stage;
+
+  // record button
+  const recOn=seg(t,T.clickRec[1],T.clickStop[1]);
+  $('record-btn').className='btn ghost rec'+(recOn?' on':'');
+  $('rec-label').textContent=recOn?'Stop':(t>=T.clickStop[1]?'Re-record':'Record');
+  $('rdot').style.opacity=recOn?(0.4+0.6*Math.abs(Math.sin(t/300))):1;
+
+  // transcript column
+  if(t<T.clickRec[1]) $('transcript').innerHTML='Press <b style="color:var(--text-1)">Record</b> and talk through what you want built.';
+  else if(t<T.stt[0]) $('transcript').textContent='(listening…)';
+  else{
+    const n=Math.floor(prog(t,T.stt[0]+300,T.stt[1])*SPOKEN.length);
+    $('transcript').textContent=SPOKEN.slice(0,Math.max(0,n))||'(transcribing…)';
+  }
+  const sttOn=seg(t,T.stt[0],T.stt[1]);
+  $('sttbar').style.display=sttOn?'block':'none';
+  if(sttOn) $('sttfill').style.width=(prog(t,T.stt[0],T.stt[1])*100)+'%';
+
+  // XML column
+  if(t<T.draft[1]) $('xml-editor').innerHTML=hi(PLACEHOLDER);
+  else if(t<T.confirmed[0]) $('xml-editor').innerHTML=hi(XML_DRAFT);
+  else $('xml-editor').innerHTML=hi(XML_FINAL.replace('<task>','<!-- answers folded at confirm -->\n<task>'));
+  const d1=seg(t,T.draft[0],T.draft[1]);
+  $('drafting').style.opacity=d1?1:0;
+  if(d1) $('ring1').style.transform='rotate('+((t/2.5)%360)+'deg)';
+
+  // questions column
+  const d2=seg(t,T.grilling[0],T.quest[0]);
+  $('drafting-q').style.opacity=d2?1:0;
+  if(d2) $('ring2').style.transform='rotate('+((t/2.5)%360)+'deg)';
+  const qOn=t>=T.quest[0]&&t<T.exit[0];
+  $('questions').style.opacity=qOn?ease(prog(t,T.quest[0],T.quest[0]+400)):0;
+  $('q-count').textContent=qOn?'3':'0';
+  const chipSel=t>=T.clickChip[0]+120;
+  $('chip1').className='chip'+(chipSel?' sel':'');
+  $('q1').style.opacity=chipSel?0.5:1;
+
+  // grill switch
+  $('grill-sw').className='switch'+(t>=T.clickGrill[0]+120?' on':'');
+
+  // confirm / action note
+  const note=$('action-note');
+  if(seg(t,T.validating[0],T.confirmed[0])){note.style.opacity=1;note.textContent='Confirm sent — validating…';}
+  else if(t>=T.confirmed[0]&&t<T.exit[0]){note.style.opacity=1;note.textContent='Confirmed ✓ — injected into the session.';}
+  else note.style.opacity=0;
+  $('confirm-btn').className='btn primary'+(t>=T.confirmed[0]?' off':'');
+  $('cancel-btn').className='btn ghost'+(t>=T.confirmed[0]?' off':'');
+
+  // terminal injection
+  const inj=$('inj');
+  if(t>=T.inject[0]){
+    inj.style.opacity=clamp01(prog(t,T.inject[0],T.inject[0]+350));
+    const n=Math.floor(prog(t,T.inject[0]+250,T.inject[1])*XML_FINAL.length);
+    $('injxml').innerHTML=hi(XML_FINAL.slice(0,n));
+  } else inj.style.opacity=0;
+
+  // cursor + click ripple
+  const [cx,cy]=curPos(t);
+  $('cursor').style.left=cx+'px';$('cursor').style.top=cy+'px';
+  const clicks=[[T.clickRec,TGT.rec],[T.clickStop,TGT.rec],[T.clickGrill,TGT.grill],[T.clickChip,TGT.chip],[T.clickConf,TGT.conf]];
+  let rp=-1,rx=0,ry=0;
+  for(const [c,p] of clicks){const q=prog(t,c[0],c[1]);if(q>0&&q<1){rp=q;rx=p[0];ry=p[1];break;}}
+  const rip=$('ripple');
+  if(rp>=0){const sz=10+36*rp;rip.style.width=sz+'px';rip.style.height=sz+'px';
+    rip.style.left=(rx-sz/2)+'px';rip.style.top=(ry-sz/2)+'px';rip.style.opacity=(1-rp)*0.9;}
+  else rip.style.opacity=0;
+  $('cursor').style.transform=rp>=0?'scale(0.82)':'scale(1)';
+
+  // caption
+  let cap='';
+  if(t<T.enter[0]) cap='Inside Claude Code — <span class="m">/stp:voice</span>';
+  else if(t<T.clickRec[0]) cap='A local popup opens — <span class="m">127.0.0.1</span>, token-gated';
+  else if(t<T.stt[0]) cap='Talk it out — any length, out of order is fine';
+  else if(t<T.draft[0]) cap='Transcribed <span class="m">locally</span> with Whisper';
+  else if(t<T.review[0]) cap='Drafted <span class="m">outside your session</span>, grounded in your repo';
+  else if(t<T.clickGrill[0]) cap='A faithful structure of <span class="m">what you said</span> — nothing invented';
+  else if(t<T.quest[0]) cap='Flip <span class="m">Grill</span> on — live, mid-review';
+  else if(t<T.clickChip[0]) cap='STP asks what’s <span class="m">expensive to get wrong</span>';
+  else if(t<T.clickConf[0]) cap='Answers stay <span class="m">local</span> until you confirm';
+  else if(t<T.exit[0]) cap='Confirm — answers folded, <span class="m">one validated XML</span>';
+  else cap='One prompt enters the session. <span class="m">The mess never does.</span>';
+  $('capt').innerHTML=cap;
+}
+
+window.DURATION=DURATION; // window.seek is the global function declaration above
+window.ready=(async()=>{await document.fonts.ready;measure();seek(0);})();
+
+if(new URLSearchParams(location.search).has('play')){
+  window.ready.then(()=>{const t0=performance.now();(function loop(){seek(performance.now()-t0);requestAnimationFrame(loop);})();});
+}
+</script>
+</body>
+</html>

@@ -13,7 +13,7 @@ to produce a single, confirmed, structured XML prompt for your coding agent —
 instead of pasting raw, rambling dictation. That goes for new tasks and for the
 fifteen corrections you owe your agent after reviewing its work.
 
-![The STP popup: what you said · the XML to inject · STP's questions](docs/popup.png)
+![STP demo: speak → local transcription → repo-grounded XML draft → grill questions → confirm → one XML injected](docs/demo.gif)
 
 ## When to reach for it
 
@@ -70,6 +70,8 @@ helper and downloads a Whisper model (~75 MB–0.9 GB depending on the recommend
 tier for your machine) — after that, everything is local and offline-capable.
 
 ## Use
+
+![The STP popup: what you said · the XML to inject · STP's questions](docs/popup.png)
 
 1. `/stp:voice` — a local popup opens (127.0.0.1 only, per-run token).
 2. Hit record and talk through what you want built (any length; stop when done).
