@@ -6,6 +6,7 @@
 // Usage:  CHROME=/path/to/chrome node demo/shoot.mjs [outDir] [fps]
 //   CHROME defaults to a Playwright-cache chromium if one exists.
 //   FRAMES env: "a,b" ms range to render only a slice (preview).
+//   MOVIE env: scene file to shoot (default movie.html; e.g. movie-compact.html).
 import { launch } from "puppeteer-core";
 import { mkdirSync, readdirSync, unlinkSync, existsSync } from "node:fs";
 import { join, dirname, resolve } from "node:path";
@@ -45,7 +46,7 @@ const browser = await launch({
 });
 const page = await browser.newPage();
 await page.setViewport({ width: 1920, height: 1080, deviceScaleFactor: 1 });
-await page.goto(pathToFileURL(join(here, "movie.html")).href, { waitUntil: "networkidle0" });
+await page.goto(pathToFileURL(join(here, process.env.MOVIE ?? "movie.html")).href, { waitUntil: "networkidle0" });
 await page.evaluate(() => window.ready);
 
 const DURATION = await page.evaluate(() => window.DURATION);
