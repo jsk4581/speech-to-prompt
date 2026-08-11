@@ -542,10 +542,16 @@ export async function startVoiceSession(opts: VoiceSessionOptions): Promise<Voic
       res.end("{}");
     },
 
-    // server → popup push channel.
-    "GET /events": (_req, res) => {
+    // server → popup push channel. `run` identifies THIS helper launch: a popup
+    // whose stored run id differs reconnected to a superseding helper — it
+    // marks itself stale instead of acting on a session it no longer owns.
+    "GET /events": (_req, res, ctx) => {
       hub.attach(res);
-      hub.broadcast("ready", { whisper: plan ? "ready" : "absent", stage: "capture" });
+      hub.broadcast("ready", {
+        whisper: plan ? "ready" : "absent",
+        stage: "capture",
+        run: ctx.token.slice(0, 8),
+      });
       if (currentRound) hub.send(res, "round", currentRound);
     },
 
@@ -657,8 +663,16 @@ export async function startVoiceSession(opts: VoiceSessionOptions): Promise<Voic
       resolveAgent({ status: "confirmed", ...body });
       sendJson(res, 200, { ok: true });
     },
-    "POST /cancel": (_req, res) => {
+    "POST /cancel": (req, res) => {
       touch();
+      // Only the Cancel button (a JSON POST) may cancel. Popups from older
+      // versions fire a pagehide sendBeacon here on close/reload/tab-discard —
+      // no JSON content-type — and the origin-wide cookie makes it valid for
+      // the *current* session: a phantom cancel. Ignore those.
+      if (!String(req.headers["content-type"] ?? "").includes("application/json")) {
+        sendJson(res, 202, { ignored: true });
+        return;
+      }
       resolveAgent({ status: "cancelled" });
       sendJson(res, 200, { ok: true });
     },

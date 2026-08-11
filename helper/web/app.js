@@ -49,6 +49,9 @@ const state = {
   /** dual-draft buffers ({default, enhanced}) when an enhance round is active */
   xmlBuffers: null,
   activeTab: "default",
+  /** the helper launch this page belongs to (from the SSE 'ready' event) */
+  runId: null,
+  stale: false,
 };
 
 // ── helpers ──────────────────────────────────────────────────────────────────
@@ -110,6 +113,18 @@ function connectEvents() {
   state.events = es;
   es.addEventListener("ready", (e) => {
     const data = safeJson(e.data);
+    // Run-identity guard: after this helper is superseded by a newer launch,
+    // this page's EventSource auto-reconnects to the NEW helper. A different
+    // run id means this tab no longer owns the session — go inert instead of
+    // interfering with the fresh popup.
+    if (data.run) {
+      if (state.runId && state.runId !== data.run) {
+        enterStaleMode();
+        return;
+      }
+      state.runId = data.run;
+    }
+    if (state.stale) return;
     setStage(data.whisper === "absent" ? "capture · (no model yet)" : "capture");
   });
   es.addEventListener("transcript", (e) => {
@@ -401,6 +416,20 @@ function onChipClick(chip) {
 /** Push a draft-setting change; the helper reads them at transcribe time. */
 function pushSettings(patch) {
   postJson("/mode", patch).catch(() => setStage("settings change failed"));
+}
+
+/** This tab's session was superseded by a newer popup — go fully inert. */
+function enterStaleMode() {
+  if (state.stale) return;
+  state.stale = true;
+  state.activeRound = null;
+  state.events?.close();
+  for (const b of document.querySelectorAll("button, input, textarea, [contenteditable]")) {
+    if (b.setAttribute) b.setAttribute("contenteditable", "false");
+    b.disabled = true;
+  }
+  setStage("superseded — a newer STP popup is open; close this tab");
+  renderTranscript("This tab belongs to an older run. Use the newest STP popup window.");
 }
 
 function cancelSession() {

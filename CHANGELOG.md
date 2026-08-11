@@ -6,6 +6,16 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.2.2] — 2026-08-11
+
+### Fixed
+- Phantom cancels, part two: popups from versions before 0.2.1 still carry the
+  pagehide cancel beacon, and those stale tabs keep firing it when closed or
+  discarded. The helper now ignores any `/cancel` that is not a JSON request
+  (the Cancel button's shape), which immunizes the session against every
+  older tab. A popup that reconnects to a helper that superseded its own also
+  marks itself stale and goes inert instead of acting on the new session.
+
 ## [0.2.1] — 2026-08-11
 
 ### Fixed
