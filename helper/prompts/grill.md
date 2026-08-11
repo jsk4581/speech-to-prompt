@@ -163,3 +163,10 @@ variants (an answer is the user's own words — `said`), resolve the questions
 they settle (the objective mode settles once its question is answered), and
 drop them from `questions`. Stop asking once the draft is faithful and complete
 enough to hand off.
+
+The mode and grill settings may also have *changed* between rounds — the user
+flips them live while reviewing. Reshape the existing draft to the new
+settings without losing content or folded answers: enhance turned on → add the
+`enhanced` variant now; off → drop it. Grill turned on → surface the open
+unknown-unknowns as questions; off → return no questions and no `question`
+slots (resolve or drop the slots, never silently answer them).

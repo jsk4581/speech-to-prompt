@@ -6,6 +6,15 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.2.4] — 2026-08-11
+
+### Added
+- Enhance and Grill are now live controls: flipping a switch while a draft is
+  on screen redrafts the current document with the new settings — the enhanced
+  tab and the question panel appear or disappear accordingly, with the
+  drafting spinner covering the wait. Before recording they still simply set
+  the recipe for the next draft.
+
 ## [0.2.3] — 2026-08-11
 
 ### Added

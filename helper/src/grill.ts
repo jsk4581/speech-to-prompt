@@ -53,6 +53,7 @@ export interface RoundPayload {
 type RawOutcome =
   | { status: "answered"; answers?: unknown[]; [k: string]: unknown }
   | { status: "confirmed"; xml?: string; [k: string]: unknown }
+  | { status: "settings"; mode?: string; grill?: string }
   | { status: "cancelled" }
   | { status: "popup_closed" }
   | { status: "timeout" };
@@ -62,6 +63,7 @@ export type Outcome =
   | { status: "answered"; answers?: unknown[]; [k: string]: unknown }
   | { status: "confirmed"; ok: true; finalOut: string }
   | { status: "confirmed"; ok: false; problem: string }
+  | { status: "settings"; mode?: string; grill?: string }
   | { status: "cancelled" }
   | { status: "popup_closed" }
   | { status: "timeout" };
@@ -252,6 +254,7 @@ async function pollLoop(c: Conn, capS: number): Promise<RawOutcome> {
     if (
       out.status === "answered" ||
       out.status === "confirmed" ||
+      out.status === "settings" ||
       out.status === "cancelled" ||
       out.status === "popup_closed"
     ) {

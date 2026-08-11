@@ -130,6 +130,14 @@ outcome and act on `status`:
   they settle, set the objective mode once question one is answered), rewrite
   `<RUN>/draft.json`, and reply with the new question count. Then publish the
   next round the same way. Repeat.
+- **`settings`** — the user flipped Enhance/Grill mid-round; it carries the
+  new `mode` and `grill`. Treat these as the settings from now on (replacing
+  step 2's) and redraft like the answered case: the subagent reads its
+  previous `<RUN>/draft.json`, keeps all content and folded answers, and
+  reshapes it to the new settings — add or drop the `enhanced` variant for
+  `mode`, add questions or remove them (and any question slots) for `grill` —
+  rewrites `<RUN>/draft.json`, and replies with the question count. Then
+  publish the next round the same way.
 - **`confirmed` + `"ok":true`** — the user confirmed and the prompt passed the
   invariants. Go to step 5 with `finalOut`.
 - **`confirmed` + `"ok":false`** — the confirmed XML is not injection-ready

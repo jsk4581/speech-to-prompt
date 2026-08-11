@@ -428,9 +428,17 @@ function onChipClick(chip) {
   pushAnswers();
 }
 
-/** Push a draft-setting change; the helper reads them at transcribe time. */
+/** Push a draft-setting change. Before a recording it just sets the recipe;
+ *  mid-round it is a live control — the agent redrafts, so show the wait. */
 function pushSettings(patch) {
-  postJson("/mode", patch).catch(() => setStage("settings change failed"));
+  postJson("/mode", patch)
+    .then(() => {
+      if (state.activeRound) {
+        showDrafting();
+        setStage("re-drafting with the new settings…");
+      }
+    })
+    .catch(() => setStage("settings change failed"));
 }
 
 /** This tab's session was superseded by a newer popup — go fully inert. */

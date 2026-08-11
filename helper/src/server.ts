@@ -356,10 +356,13 @@ const KEEPALIVE_MS = 15_000; // SSE comment ping
 const GRACE_MS = 25_000; // SSE reconnect grace before declaring popup_closed
 const IDLE_CHECK_MS = 30_000; // how often idle self-shutdown is evaluated
 
-/** Terminal outcomes the agent long-poll can resolve with (popup state machine). */
+/** Outcomes the agent long-poll can resolve with (popup state machine).
+ *  `settings` is non-terminal: the user flipped Enhance/Grill mid-round and
+ *  the agent should redraft with the new settings. */
 export type AgentOutcome =
   | { status: "answered"; [k: string]: unknown }
   | { status: "confirmed"; [k: string]: unknown }
+  | { status: "settings"; mode: string; grill: string }
   | { status: "cancelled" }
   | { status: "popup_closed" };
 
@@ -647,6 +650,15 @@ export async function startVoiceSession(opts: VoiceSessionOptions): Promise<Voic
           return;
         }
         grillOn = body.grill === "on";
+      }
+      // Mid-round, a settings flip is a live control: hand the agent a
+      // `settings` outcome so it redrafts the current document with the new
+      // recipe. Never clobber an already-queued terminal outcome (e.g. a
+      // confirm the agent hasn't picked up yet); coalesce repeated flips.
+      if (currentRound) {
+        const s: AgentOutcome = { status: "settings", mode: draftMode, grill: grillOn ? "on" : "off" };
+        if (pending) resolveAgent(s);
+        else if (!queued || queued.status === "settings") queued = s;
       }
       sendJson(res, 200, { ok: true, mode: draftMode, grill: grillOn ? "on" : "off" });
     },
