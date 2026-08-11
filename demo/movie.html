@@ -5,6 +5,8 @@
   Open with ?play for a live preview; demo/shoot.mjs steps seek() per frame and
   screenshots each one, then ffmpeg assembles the GIF. No real audio/LLM runs —
   the scene replays a scripted session that mirrors the real popup's behavior.
+  A keyframed "camera" (zoom + pan on #world) highlights each phase; captions
+  and title cards live outside the camera on a fixed screen layer.
 -->
 <html lang="en">
 <head>
@@ -29,7 +31,8 @@ body{font-family:var(--ui);color:var(--text-1);letter-spacing:-.01em;-webkit-fon
     radial-gradient(1100px 700px at 8% -6%, rgba(0,120,212,.10), transparent 60%),
     radial-gradient(900px 640px at 104% 108%, rgba(86,156,214,.07), transparent 55%),
     #141414;}
-#scene{position:relative;width:1920px;height:1080px}
+#scene{position:relative;width:1920px;height:1080px;overflow:hidden}
+#world{position:absolute;left:0;top:0;width:1920px;height:1080px;transform-origin:0 0}
 
 /* ── Claude Code terminal ── */
 #terminal{position:absolute;left:150px;top:150px;width:1180px;height:760px;
@@ -116,18 +119,29 @@ code{font-family:var(--mono);font-size:.92em;color:var(--attr)}
   color:var(--text-1);background:var(--surface-2);border:1px solid var(--border-2);
   border-radius:6px;padding:6px 11px;max-width:440px;text-align:right;opacity:0}
 
-/* ── cursor · ripple · caption ── */
+/* ── cursor · ripple (inside the camera) ── */
 #cursor{position:absolute;width:30px;height:30px;left:0;top:0;z-index:50;pointer-events:none;
   filter:drop-shadow(0 2px 5px rgba(0,0,0,.55))}
 #ripple{position:absolute;width:10px;height:10px;border-radius:50%;border:2px solid #4DAAFC;opacity:0;z-index:49}
-#caption{position:absolute;left:0;width:1920px;bottom:34px;text-align:center;z-index:60}
-#caption .cap{display:inline-block;font-size:24px;font-weight:700;color:var(--text-1);background:rgba(16,16,16,.82);
-  border:1px solid var(--border-2);border-radius:12px;padding:13px 28px;letter-spacing:-.02em}
+
+/* ── screen layer: big captions + title cards (not affected by the camera) ── */
+#caption{position:absolute;left:0;width:1920px;bottom:52px;text-align:center;z-index:60;opacity:0}
+#caption.top{bottom:auto;top:52px}
+#caption .cap{display:inline-block;font-size:44px;font-weight:800;color:#fff;background:rgba(10,10,10,.78);
+  border:1px solid rgba(255,255,255,.10);border-radius:18px;padding:20px 44px;letter-spacing:-.02em;
+  box-shadow:0 18px 50px rgba(0,0,0,.5)}
 #caption .cap .m{color:#4DAAFC}
+#card{position:absolute;inset:0;z-index:70;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;gap:22px;background:rgba(10,11,13,.66);opacity:0;text-align:center}
+#card .big{font-size:96px;font-weight:900;letter-spacing:-.03em;color:#fff}
+#card .big .m{color:#4DAAFC}
+#card .sub{font-size:34px;font-weight:600;color:var(--text-2)}
+#card .sub .m{color:#4DAAFC}
 </style>
 </head>
 <body>
 <div id="scene">
+<div id="world">
 
   <div id="terminal">
     <div class="tbar"><span class="c r"></span><span class="c y"></span><span class="c g"></span>
@@ -136,7 +150,7 @@ code{font-family:var(--mono);font-size:.92em;color:var(--attr)}
       <div class="row muted">Keep the session context clean:</div>
       <div class="row muted">refine your voice <b style="color:var(--text-1)">outside</b> the session with <span class="gp">/stp:voice</span>.</div>
       <div class="row" style="height:14px"></div>
-      <div class="row"><span class="gp">❯</span> <span id="typed"></span><span class="caret" id="caret"></span></div>
+      <div class="row" id="typedrow"><span class="gp">❯</span> <span id="typed"></span><span class="caret" id="caret"></span></div>
       <div class="row" id="runline" style="opacity:0">  <span class="muted">→ helper up · popup opened (127.0.0.1 · token-gated)</span></div>
       <div id="inj" style="opacity:0">
         <div class="row"><span class="xnote">← one confirmed XML injected</span> <span class="muted">(drafts &amp; raw speech never enter)</span></div>
@@ -157,7 +171,7 @@ code{font-family:var(--mono);font-size:.92em;color:var(--attr)}
           <div class="sttbar" id="sttbar" style="display:none"><span class="fill" id="sttfill"></span></div>
           <div class="said" id="transcript">Press <b style="color:var(--text-1)">Record</b> and talk through what you want built.</div>
         </section>
-        <section class="col xml-col">
+        <section class="col xml-col" id="xml-col">
           <div class="drafting" id="drafting"><span class="ring" id="ring1"></span><span class="dtext">drafting the prompt…</span></div>
           <div class="colh"><span class="label blue">XML to inject</span><span class="spacerflex"></span><span class="keyhint">editable</span></div>
           <pre class="xml" id="xml-editor"></pre>
@@ -200,7 +214,13 @@ code{font-family:var(--mono);font-size:.92em;color:var(--attr)}
 
   <div id="ripple"></div>
   <svg id="cursor" viewBox="0 0 24 24" width="30" height="30"><path d="M5 3l14 7-6 1.6L9.6 18z" fill="#fff" stroke="#141414" stroke-width="1.4" stroke-linejoin="round"/></svg>
-  <div id="caption"><span class="cap" id="capt"></span></div>
+</div>
+
+<div id="caption"><span class="cap" id="capt"></span></div>
+<div id="card">
+  <div class="big" id="card-big"></div>
+  <div class="sub" id="card-sub"></div>
+</div>
 </div>
 
 <script>
@@ -257,15 +277,17 @@ function hi(src){
 
 // ── timeline (ms) ────────────────────────────────────────────────────────────
 const T={
-  type:[700,2200], enter:[2400,3000], idle:[3000,4400],
-  clickRec:[4400,4650], rec:[4650,8300], clickStop:[8300,8550],
-  stt:[8550,10500], draft:[10500,12400], review:[12400,14200],
-  clickGrill:[14200,14450], grilling:[14450,16100], quest:[16100,17600],
-  clickChip:[17600,17850], answered:[17850,19100],
-  clickConf:[19100,19350], validating:[19350,20500], confirmed:[20500,22100],
-  exit:[22100,22700], inject:[22700,25100], hold:[25100,27200]
+  cardIn:[0,1500],
+  type:[1500,3000], enter:[3200,3800], idle:[3800,5000],
+  clickRec:[5000,5250], rec:[5250,8900], clickStop:[8900,9150],
+  stt:[9150,11100], draft:[11100,13000], review:[13000,14800],
+  clickGrill:[14800,15050], grilling:[15050,16700], quest:[16700,18200],
+  clickChip:[18200,18450], answered:[18450,19700],
+  clickConf:[19700,19950], validating:[19950,21100], confirmed:[21100,22700],
+  exit:[22700,23300], inject:[23300,25700], hold:[25700,26500],
+  cardOut:[26500,29400]
 };
-const DURATION=27200;
+const DURATION=29400;
 
 const clamp01=v=>v<0?0:v>1?1:v;
 const prog=(t,a,b)=>clamp01((t-a)/(b-a));
@@ -274,37 +296,87 @@ const ease=x=>x<0.5?2*x*x:1-Math.pow(-2*x+2,2)/2;
 const lerp=(a,b,x)=>a+(b-a)*x;
 const $=id=>document.getElementById(id);
 
-// cursor targets, measured from the real layout once fonts settle
-let TGT={rec:[960,980],grill:[960,980],chip:[1500,300],conf:[1150,980]};
+// ── measured targets → cursor path + camera path ─────────────────────────────
+let TGT={};
+let CUR=[], CAM=[];
+function center(el){const r=el.getBoundingClientRect();return [r.left+r.width/2,r.top+r.height/2];}
 function measure(){
-  const c=el=>{const r=el.getBoundingClientRect();return [r.left+r.width/2,r.top+r.height/2];};
-  TGT={rec:c($('record-btn')),grill:c($('grill-sw')),chip:c($('chip1')),conf:c($('confirm-btn'))};
-  buildPath();
+  TGT={
+    typed:center($('typedrow')),
+    rec:center($('record-btn')), grill:center($('grill-sw')),
+    chip:center($('chip1')), conf:center($('confirm-btn')),
+    said:center($('transcript')), xml:center($('xml-col')),
+    q1:center($('q1')), qcol:center($('questions')),
+    inj:[640,560]
+  };
+  buildPaths();
 }
-let CUR=[];
-function buildPath(){
+function buildPaths(){
+  const G=TGT;
   CUR=[
-    [0,860,620],[2400,860,620],
-    [3200,TGT.rec[0],TGT.rec[1]-120],
-    [T.clickRec[0]-150,TGT.rec[0],TGT.rec[1]],[T.clickStop[1],TGT.rec[0],TGT.rec[1]],
-    [T.stt[1],700,520],[T.review[0]+400,880,470],[T.review[1]-200,880,470],
-    [T.clickGrill[0]-120,TGT.grill[0],TGT.grill[1]],[T.clickGrill[1]+250,TGT.grill[0],TGT.grill[1]],
-    [T.quest[0]+500,TGT.chip[0],TGT.chip[1]-60],
-    [T.clickChip[0]-100,TGT.chip[0],TGT.chip[1]],[T.clickChip[1]+300,TGT.chip[0],TGT.chip[1]],
-    [T.clickConf[0]-120,TGT.conf[0],TGT.conf[1]],[T.clickConf[1]+300,TGT.conf[0],TGT.conf[1]],
+    [0,860,620],[T.type[0],860,620],
+    [T.enter[1],G.rec[0],G.rec[1]-140],
+    [T.clickRec[0]-150,G.rec[0],G.rec[1]],[T.clickStop[1],G.rec[0],G.rec[1]],
+    [T.stt[1],700,520],[T.review[0]+400,880,470],[T.review[1]-300,880,470],
+    [T.clickGrill[0]-120,G.grill[0],G.grill[1]],[T.clickGrill[1]+250,G.grill[0],G.grill[1]],
+    [T.quest[0]+500,G.chip[0],G.chip[1]-60],
+    [T.clickChip[0]-100,G.chip[0],G.chip[1]],[T.clickChip[1]+300,G.chip[0],G.chip[1]],
+    [T.clickConf[0]-120,G.conf[0],G.conf[1]],[T.clickConf[1]+300,G.conf[0],G.conf[1]],
     [T.exit[1],700,600],[DURATION,700,600]
   ];
+  // camera keyframes: [t, cx, cy, scale] — what the viewer is looking at
+  CAM=[
+    [0,960,540,1.0],[1200,960,540,1.0],
+    [1900,G.typed[0]+180,G.typed[1]+30,1.55],[T.type[1],G.typed[0]+180,G.typed[1]+30,1.55],
+    [T.enter[1],960,540,1.0],[T.idle[1]-200,960,540,1.0],
+    [T.clickRec[0],G.rec[0]+120,G.rec[1]-250,1.5],[T.clickRec[1]+350,G.rec[0]+120,G.rec[1]-250,1.5],
+    [T.rec[0]+1400,G.said[0]+40,G.said[1]+120,1.45],[T.clickStop[0]-300,G.said[0]+40,G.said[1]+120,1.45],
+    [T.clickStop[0],G.rec[0]+80,G.rec[1]-260,1.45],[T.clickStop[1]+200,G.rec[0]+80,G.rec[1]-260,1.45],
+    [T.stt[0]+500,G.said[0]+30,G.said[1]+90,1.5],[T.stt[1],G.said[0]+30,G.said[1]+90,1.5],
+    [T.draft[0]+500,G.xml[0],G.xml[1]-60,1.35],[T.review[1]-200,G.xml[0],G.xml[1]-20,1.4],
+    [T.clickGrill[0],G.grill[0]+60,G.grill[1]-280,1.5],[T.clickGrill[1]+400,G.grill[0]+60,G.grill[1]-280,1.5],
+    [T.grilling[0]+700,G.qcol[0]-40,G.qcol[1]-20,1.4],[T.quest[0]+300,G.qcol[0]-40,G.qcol[1]-20,1.4],
+    [T.quest[0]+800,G.q1[0]-20,G.q1[1]+30,1.55],[T.answered[0]+400,G.q1[0]-20,G.q1[1]+30,1.55],
+    [T.clickConf[0]-100,G.conf[0]-40,G.conf[1]-290,1.5],[T.confirmed[1]-200,G.conf[0]-40,G.conf[1]-290,1.5],
+    [T.exit[1],960,540,1.0],[T.inject[0],960,540,1.0],
+    [T.inject[0]+600,G.inj[0],G.inj[1],1.5],[T.hold[1],G.inj[0],G.inj[1]+40,1.55],
+    [T.cardOut[0]+700,960,540,1.02],[DURATION,960,540,1.0]
+  ];
 }
-function curPos(t){
-  for(let i=0;i<CUR.length-1;i++){
-    const [t0,x0,y0]=CUR[i],[t1,x1,y1]=CUR[i+1];
-    if(t>=t0&&t<=t1){const x=ease(prog(t,t0,t1));return [lerp(x0,x1,x),lerp(y0,y1,x)];}
+function pathAt(path,t,dims){
+  for(let i=0;i<path.length-1;i++){
+    const a=path[i],b=path[i+1];
+    if(t>=a[0]&&t<=b[0]){const x=ease(prog(t,a[0],b[0]));
+      return dims.map((_,k)=>lerp(a[k+1],b[k+1],x));}
   }
-  const L=CUR[CUR.length-1];return [L[1],L[2]];
+  const L=path[path.length-1];return dims.map((_,k)=>L[k+1]);
 }
+const curPos=t=>pathAt(CUR,t,[0,0]);
+const camPos=t=>pathAt(CAM,t,[0,0,0]);
+
+// big captions on the screen layer: [t0, t1, html, pos]
+// pos 'b' = bottom (default) · 't' = top, used when the camera parks the
+// footer at the bottom of the frame so the caption must not cover it
+const CAPS=[
+  [1700,3100,'Inside <span class="m">Claude Code</span> — /stp:voice','b'],
+  [3400,4900,'A local popup — <span class="m">127.0.0.1</span>, token-gated','b'],
+  [5600,8700,'Talk it out — <span class="m">any length</span>, out of order is fine','b'],
+  [9400,11000,'Transcribed <span class="m">locally</span> with Whisper','b'],
+  [11300,12900,'Drafted <span class="m">outside your session</span>, grounded in your repo','b'],
+  [13100,14700,'A faithful structure of <span class="m">what you said</span> — nothing invented','b'],
+  [14900,16600,'Flip <span class="m">Grill</span> on — live, mid-review','t'],
+  [16900,18100,'The questions that are <span class="m">expensive to get wrong</span>','b'],
+  [18600,19600,'Answers stay <span class="m">local</span> until you confirm','b'],
+  [20100,22500,'Confirm — answers folded, <span class="m">one validated XML</span>','t'],
+  [23600,26300,'One prompt enters the session — <span class="m">the mess never does</span>','b']
+];
 
 function seek(t){
   t=Math.max(0,Math.min(DURATION,t));
+
+  // camera
+  const [cx,cy,s]=camPos(t);
+  $('world').style.transform=`translate(${(960-cx*s).toFixed(2)}px,${(540-cy*s).toFixed(2)}px) scale(${s.toFixed(4)})`;
 
   // terminal typing
   const CMD='/stp:voice';
@@ -369,7 +441,7 @@ function seek(t){
   $('q-count').textContent=qOn?'3':'0';
   const chipSel=t>=T.clickChip[0]+120;
   $('chip1').className='chip'+(chipSel?' sel':'');
-  $('q1').style.opacity=chipSel?0.5:1;
+  $('q1').style.opacity=chipSel?0.55:1;
 
   // grill switch
   $('grill-sw').className='switch'+(t>=T.clickGrill[0]+120?' on':'');
@@ -391,8 +463,8 @@ function seek(t){
   } else inj.style.opacity=0;
 
   // cursor + click ripple
-  const [cx,cy]=curPos(t);
-  $('cursor').style.left=cx+'px';$('cursor').style.top=cy+'px';
+  const [ux,uy]=curPos(t);
+  $('cursor').style.left=ux+'px';$('cursor').style.top=uy+'px';
   const clicks=[[T.clickRec,TGT.rec],[T.clickStop,TGT.rec],[T.clickGrill,TGT.grill],[T.clickChip,TGT.chip],[T.clickConf,TGT.conf]];
   let rp=-1,rx=0,ry=0;
   for(const [c,p] of clicks){const q=prog(t,c[0],c[1]);if(q>0&&q<1){rp=q;rx=p[0];ry=p[1];break;}}
@@ -402,20 +474,26 @@ function seek(t){
   else rip.style.opacity=0;
   $('cursor').style.transform=rp>=0?'scale(0.82)':'scale(1)';
 
-  // caption
-  let cap='';
-  if(t<T.enter[0]) cap='Inside Claude Code — <span class="m">/stp:voice</span>';
-  else if(t<T.clickRec[0]) cap='A local popup opens — <span class="m">127.0.0.1</span>, token-gated';
-  else if(t<T.stt[0]) cap='Talk it out — any length, out of order is fine';
-  else if(t<T.draft[0]) cap='Transcribed <span class="m">locally</span> with Whisper';
-  else if(t<T.review[0]) cap='Drafted <span class="m">outside your session</span>, grounded in your repo';
-  else if(t<T.clickGrill[0]) cap='A faithful structure of <span class="m">what you said</span> — nothing invented';
-  else if(t<T.quest[0]) cap='Flip <span class="m">Grill</span> on — live, mid-review';
-  else if(t<T.clickChip[0]) cap='STP asks what’s <span class="m">expensive to get wrong</span>';
-  else if(t<T.clickConf[0]) cap='Answers stay <span class="m">local</span> until you confirm';
-  else if(t<T.exit[0]) cap='Confirm — answers folded, <span class="m">one validated XML</span>';
-  else cap='One prompt enters the session. <span class="m">The mess never does.</span>';
-  $('capt').innerHTML=cap;
+  // captions (screen layer, fade in/out)
+  let capHtml='',capOp=0,capPos='b';
+  for(const [a,b,h,p] of CAPS){
+    if(t>=a&&t<b){capHtml=h;capPos=p;capOp=Math.min(prog(t,a,a+250),1-prog(t,b-250,b));break;}
+  }
+  $('capt').innerHTML=capHtml;
+  $('caption').style.opacity=capOp;
+  $('caption').className=capPos==='t'?'top':'';
+
+  // title cards (opening + closing)
+  const card=$('card');
+  if(t<T.cardIn[1]){
+    card.style.opacity=1-prog(t,T.cardIn[1]-450,T.cardIn[1]);
+    $('card-big').innerHTML='Speech <span class="m">→</span> Prompt';
+    $('card-sub').innerHTML='voice in · <span class="m">one structured XML prompt</span> out';
+  } else if(t>=T.cardOut[0]){
+    card.style.opacity=prog(t,T.cardOut[0],T.cardOut[0]+500);
+    $('card-big').innerHTML='Speech <span class="m">→</span> Prompt';
+    $('card-sub').innerHTML='one confirmed XML · <span class="m">zero session pollution</span>';
+  } else card.style.opacity=0;
 }
 
 window.DURATION=DURATION; // window.seek is the global function declaration above
