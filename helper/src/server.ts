@@ -464,6 +464,10 @@ export async function startVoiceSession(opts: VoiceSessionOptions): Promise<Voic
   const touch = () => {
     lastActivity = Date.now();
   };
+  // Draft mode the popup selected: "max" = full proposal blend (default),
+  // "simple" = faithful structuring of the user's own words only. Captured at
+  // /transcribe time into the transcript record, where the agent reads it.
+  let draftMode: "simple" | "max" = "max";
 
   const resolveAgent = (outcome: AgentOutcome) => {
     if (pending) {
@@ -545,10 +549,10 @@ export async function startVoiceSession(opts: VoiceSessionOptions): Promise<Voic
         });
         await appendFile(
           transcriptFile,
-          JSON.stringify({ at: new Date().toISOString(), bytes: wav.length, ...result }) + "\n",
+          JSON.stringify({ at: new Date().toISOString(), bytes: wav.length, mode: draftMode, ...result }) + "\n",
         );
         hub.broadcast("transcript", { text: result.text, language: result.language });
-        sendJson(res, 200, { ...result, bytes: wav.length });
+        sendJson(res, 200, { ...result, bytes: wav.length, mode: draftMode });
       } finally {
         await unlink(tmp).catch(() => {});
       }
@@ -584,6 +588,18 @@ export async function startVoiceSession(opts: VoiceSessionOptions): Promise<Voic
     },
 
     // popup → agent terminal events (resolve the held long-poll).
+    // popup → helper: pick the draft mode (before Stop; read at /transcribe time).
+    "POST /mode": async (req, res) => {
+      touch();
+      const body = (await readJson(req)) as { mode?: unknown };
+      if (body.mode !== "simple" && body.mode !== "max") {
+        sendJson(res, 400, { error: 'mode must be "simple" or "max"' });
+        return;
+      }
+      draftMode = body.mode;
+      sendJson(res, 200, { ok: true, mode: draftMode });
+    },
+
     "POST /answer": async (req, res) => {
       touch();
       const body = await readJson(req);

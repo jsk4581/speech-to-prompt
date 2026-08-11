@@ -22,22 +22,20 @@
 /** Where a piece of draft content came from. Drives the popup's highlighting. */
 export type Source = "said" | "inferred" | "question";
 
-/** The 10-section coding-prompt skeleton (Claude prompting best-practices). */
+/** The 9-section coding-prompt skeleton (Claude prompting best-practices). */
 export type SectionName =
-  | "role" // 1. who the agent should be
-  | "context" // 2. the why / motivation
-  | "references" // 3. repo files & material — kept near the top
-  | "objective" // 4. explicit goal; mode = implement vs. advise
-  | "steps" // 5. ordered instructions
-  | "examples" // 6. concrete examples
-  | "guardrails" // 7. what to avoid (over-engineering, hardcoding, …)
-  | "success_criteria" // 8. definition of done + how to self-verify
-  | "output" // 9. how to report back
-  | "ambiguity"; // 10. escape hatch: ask when a requirement is unclear
+  | "context" // 1. the why / motivation
+  | "references" // 2. repo files & material — kept near the top
+  | "objective" // 3. explicit goal; mode = implement vs. advise
+  | "steps" // 4. ordered instructions
+  | "examples" // 5. concrete examples
+  | "guardrails" // 6. what to avoid (over-engineering, hardcoding, …)
+  | "success_criteria" // 7. definition of done + how to self-verify
+  | "output" // 8. how to report back
+  | "ambiguity"; // 9. escape hatch: ask when a requirement is unclear
 
 /** Canonical emit order. The generator always reorders to this. */
 export const SECTION_ORDER: readonly SectionName[] = [
-  "role",
   "context",
   "references",
   "objective",
@@ -208,7 +206,7 @@ function lintEmphasis(text: string, where: SectionName): Violation[] {
 
 /** Nudge instruction-ish sections toward positive phrasing (guardrails exempt). */
 function lintPositive(name: SectionName, text: string): Violation[] {
-  if (!["role", "context", "objective", "steps"].includes(name)) return [];
+  if (!["context", "objective", "steps"].includes(name)) return [];
   if (/\b(do not|don'?t|never|avoid)\b/i.test(text)) {
     return [
       {

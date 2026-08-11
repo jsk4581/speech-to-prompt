@@ -32,7 +32,6 @@ function injectableDraft() {
   return {
     lang: "en",
     sections: [
-      { name: "role", segments: [seg("A senior engineer familiar with this repo", "inferred")] },
       { name: "context", segments: [seg("Add Google OAuth to the login page.")] },
       { name: "references", segments: [seg("src/pages/login.tsx:18, src/auth/", "inferred")] },
       { name: "objective", attrs: { mode: "implement" }, segments: [seg("Wire Google OAuth end to end.")] },
@@ -75,15 +74,15 @@ test("generateXml reorders sections so references lands near the top", () => {
     sections: [
       { name: "objective", attrs: { mode: "advise" }, segments: [seg("Do the thing")] },
       { name: "references", segments: [seg("src/a.ts", "inferred")] },
-      { name: "role", segments: [seg("An engineer", "inferred")] },
+      { name: "context", segments: [seg("The login page needs OAuth")] },
     ],
     questions: [],
   };
   const xml = generateXml(draft);
-  const iRole = xml.indexOf("<role>");
+  const iCtx = xml.indexOf("<context>");
   const iRefs = xml.indexOf("<references>");
   const iObj = xml.indexOf("<objective");
-  assert.ok(iRole < iRefs && iRefs < iObj, `expected role < references < objective, got ${iRole},${iRefs},${iObj}`);
+  assert.ok(iCtx < iRefs && iRefs < iObj, `expected context < references < objective, got ${iCtx},${iRefs},${iObj}`);
 });
 
 test("generateXml writes the objective mode attribute", () => {
@@ -94,13 +93,13 @@ test("generateXml writes the objective mode attribute", () => {
 test("generateXml drops empty sections but keeps objective", () => {
   const draft = {
     sections: [
-      { name: "role", segments: [] },
+      { name: "context", segments: [] },
       { name: "objective", attrs: { mode: "advise" }, segments: [] },
     ],
     questions: [],
   };
   const xml = generateXml(draft);
-  assert.ok(!xml.includes("<role>"), "empty role should be dropped");
+  assert.ok(!xml.includes("<context>"), "empty context should be dropped");
   assert.match(xml, /<objective mode="advise">/);
 });
 
@@ -202,18 +201,18 @@ test("assertInjectable requires success_criteria", () => {
 // ── parse (tolerant) ────────────────────────────────────────────────────────
 
 test("parseXml throws when there is no <task> root", () => {
-  assert.throws(() => parseXml("<role>hi</role>"), /no <task>/);
+  assert.throws(() => parseXml("<context>hi</context>"), /no <task>/);
 });
 
 test("parseXml reads sections, text, and the objective mode", () => {
   const draft = parseXml(
     `<task>
-       <role>An engineer</role>
+       <context>The login page needs OAuth</context>
        <objective mode="implement">Wire OAuth</objective>
        <success_criteria>e2e passes</success_criteria>
      </task>`,
   );
-  assert.equal(sectionText(getSection(draft, "role")), "An engineer");
+  assert.equal(sectionText(getSection(draft, "context")), "The login page needs OAuth");
   assert.equal(getSection(draft, "objective").attrs.mode, "implement");
   assert.equal(sectionText(getSection(draft, "success_criteria")), "e2e passes");
 });
@@ -230,9 +229,9 @@ test("parseXml tolerates comments, CRLF, entities, and single-quoted attrs", () 
   assert.ok(getSection(draft, "references"));
 });
 
-test("parseXml ignores unknown tags", () => {
-  const draft = parseXml(`<task><role>x</role><made_up>ignored</made_up></task>`);
-  assert.ok(getSection(draft, "role"));
+test("parseXml ignores unknown tags (including the retired <role>)", () => {
+  const draft = parseXml(`<task><context>x</context><role>legacy</role><made_up>ignored</made_up></task>`);
+  assert.ok(getSection(draft, "context"));
   assert.equal(draft.sections.length, 1);
 });
 

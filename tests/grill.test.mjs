@@ -103,12 +103,18 @@ test("finalizeConfirmed reports a parse failure when there is no <task> root", (
 
 test("latestTranscript returns the last usable line's text", () => {
   const jsonl = `{"text":"first","language":"en"}\n{"text":"second","language":"ko"}\n`;
-  assert.deepEqual(latestTranscript(jsonl), { text: "second", language: "ko" });
+  assert.deepEqual(latestTranscript(jsonl), { text: "second", language: "ko", mode: undefined });
+});
+
+test("latestTranscript passes the draft mode through (and drops junk values)", () => {
+  assert.equal(latestTranscript(`{"text":"t","mode":"simple"}`).mode, "simple");
+  assert.equal(latestTranscript(`{"text":"t","mode":"max"}`).mode, "max");
+  assert.equal(latestTranscript(`{"text":"t","mode":"bogus"}`).mode, undefined);
 });
 
 test("latestTranscript skips malformed and empty-text lines", () => {
-  assert.deepEqual(latestTranscript(`{"text":"real"}\nnot json`), { text: "real", language: undefined });
-  assert.deepEqual(latestTranscript(`{"text":"keep"}\n{"text":"   "}`), { text: "keep", language: undefined });
+  assert.deepEqual(latestTranscript(`{"text":"real"}\nnot json`), { text: "real", language: undefined, mode: undefined });
+  assert.deepEqual(latestTranscript(`{"text":"keep"}\n{"text":"   "}`), { text: "keep", language: undefined, mode: undefined });
 });
 
 test("latestTranscript returns null when there is nothing usable", () => {
