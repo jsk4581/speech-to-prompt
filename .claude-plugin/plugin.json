@@ -4,10 +4,10 @@
   "version": "0.1.0",
   "description": "Compile rough spoken developer intent into one structured XML coding-agent prompt. Speech → Prompt, not just Speech → Text.",
   "author": {
-    "name": "kio-vibe"
+    "name": "jsk4581"
   },
-  "homepage": "https://github.com/kio-vibe/speech-to-prompt",
-  "repository": "https://github.com/kio-vibe/speech-to-prompt",
+  "homepage": "https://github.com/jsk4581/speech-to-prompt",
+  "repository": "https://github.com/jsk4581/speech-to-prompt",
   "license": "MIT",
   "keywords": [
     "voice",

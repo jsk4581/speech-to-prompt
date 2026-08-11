@@ -1,9 +1,9 @@
 {
-  "name": "kio-vibe",
+  "name": "jsk4581",
   "owner": {
-    "name": "kio-vibe"
+    "name": "jsk4581"
   },
-  "description": "kio-vibe plugins for Claude Code.",
+  "description": "jsk4581 plugins for Claude Code.",
   "plugins": [
     {
       "name": "stp",
