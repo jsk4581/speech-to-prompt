@@ -275,19 +275,19 @@ function hi(src){
   return out+esc(src.slice(last));
 }
 
-// ── timeline (ms) ────────────────────────────────────────────────────────────
+// ── timeline (ms) — calm pacing: long holds, few slow camera moves ──────────
 const T={
-  cardIn:[0,1500],
-  type:[1500,3000], enter:[3200,3800], idle:[3800,5000],
-  clickRec:[5000,5250], rec:[5250,8900], clickStop:[8900,9150],
-  stt:[9150,11100], draft:[11100,13000], review:[13000,14800],
-  clickGrill:[14800,15050], grilling:[15050,16700], quest:[16700,18200],
-  clickChip:[18200,18450], answered:[18450,19700],
-  clickConf:[19700,19950], validating:[19950,21100], confirmed:[21100,22700],
-  exit:[22700,23300], inject:[23300,25700], hold:[25700,26500],
-  cardOut:[26500,29400]
+  cardIn:[0,2200],
+  type:[2200,4000], enter:[4200,5000], idle:[5000,6600],
+  clickRec:[6800,7100], rec:[7100,11500], clickStop:[11500,11800],
+  stt:[11800,14400], draft:[14400,16800], review:[16800,19600],
+  clickGrill:[20000,20300], grilling:[20300,22600], quest:[22600,25400],
+  clickChip:[25400,25700], answered:[25700,27200],
+  clickConf:[27600,27900], validating:[27900,29200], confirmed:[29200,31200],
+  exit:[31200,31900], inject:[32400,35600], hold:[35600,37000],
+  cardOut:[37000,40400]
 };
-const DURATION=29400;
+const DURATION=40400;
 
 const clamp01=v=>v<0?0:v>1?1:v;
 const prog=(t,a,b)=>clamp01((t-a)/(b-a));
@@ -315,32 +315,38 @@ function buildPaths(){
   const G=TGT;
   CUR=[
     [0,860,620],[T.type[0],860,620],
-    [T.enter[1],G.rec[0],G.rec[1]-140],
-    [T.clickRec[0]-150,G.rec[0],G.rec[1]],[T.clickStop[1],G.rec[0],G.rec[1]],
-    [T.stt[1],700,520],[T.review[0]+400,880,470],[T.review[1]-300,880,470],
-    [T.clickGrill[0]-120,G.grill[0],G.grill[1]],[T.clickGrill[1]+250,G.grill[0],G.grill[1]],
-    [T.quest[0]+500,G.chip[0],G.chip[1]-60],
-    [T.clickChip[0]-100,G.chip[0],G.chip[1]],[T.clickChip[1]+300,G.chip[0],G.chip[1]],
-    [T.clickConf[0]-120,G.conf[0],G.conf[1]],[T.clickConf[1]+300,G.conf[0],G.conf[1]],
+    [T.idle[0],G.rec[0],G.rec[1]-140],
+    [T.clickRec[0]-200,G.rec[0],G.rec[1]],[T.clickStop[1],G.rec[0],G.rec[1]],
+    [T.stt[1],700,520],[T.review[0]+600,880,470],[T.review[1]-500,880,470],
+    [T.clickGrill[0]-150,G.grill[0],G.grill[1]],[T.clickGrill[1]+400,G.grill[0],G.grill[1]],
+    [T.quest[0]+900,G.chip[0],G.chip[1]-60],
+    [T.clickChip[0]-150,G.chip[0],G.chip[1]],[T.clickChip[1]+400,G.chip[0],G.chip[1]],
+    [T.clickConf[0]-200,G.conf[0],G.conf[1]],[T.clickConf[1]+400,G.conf[0],G.conf[1]],
     [T.exit[1],700,600],[DURATION,700,600]
   ];
-  // camera keyframes: [t, cx, cy, scale] — what the viewer is looking at
+  // camera keyframes: [t, cx, cy, scale] — 7 held shots, slow ~800ms moves.
+  // One shot per act; no micro-moves inside an act.
   CAM=[
-    [0,960,540,1.0],[1200,960,540,1.0],
-    [1900,G.typed[0]+180,G.typed[1]+30,1.55],[T.type[1],G.typed[0]+180,G.typed[1]+30,1.55],
-    [T.enter[1],960,540,1.0],[T.idle[1]-200,960,540,1.0],
-    [T.clickRec[0],G.rec[0]+120,G.rec[1]-250,1.5],[T.clickRec[1]+350,G.rec[0]+120,G.rec[1]-250,1.5],
-    [T.rec[0]+1400,G.said[0]+40,G.said[1]+120,1.45],[T.clickStop[0]-300,G.said[0]+40,G.said[1]+120,1.45],
-    [T.clickStop[0],G.rec[0]+80,G.rec[1]-260,1.45],[T.clickStop[1]+200,G.rec[0]+80,G.rec[1]-260,1.45],
-    [T.stt[0]+500,G.said[0]+30,G.said[1]+90,1.5],[T.stt[1],G.said[0]+30,G.said[1]+90,1.5],
-    [T.draft[0]+500,G.xml[0],G.xml[1]-60,1.35],[T.review[1]-200,G.xml[0],G.xml[1]-20,1.4],
-    [T.clickGrill[0],G.grill[0]+60,G.grill[1]-280,1.5],[T.clickGrill[1]+400,G.grill[0]+60,G.grill[1]-280,1.5],
-    [T.grilling[0]+700,G.qcol[0]-40,G.qcol[1]-20,1.4],[T.quest[0]+300,G.qcol[0]-40,G.qcol[1]-20,1.4],
-    [T.quest[0]+800,G.q1[0]-20,G.q1[1]+30,1.55],[T.answered[0]+400,G.q1[0]-20,G.q1[1]+30,1.55],
-    [T.clickConf[0]-100,G.conf[0]-40,G.conf[1]-290,1.5],[T.confirmed[1]-200,G.conf[0]-40,G.conf[1]-290,1.5],
+    // act 1 — terminal: one close shot on the prompt line
+    [0,960,540,1.0],[1600,960,540,1.0],
+    [2400,G.typed[0]+180,G.typed[1]+30,1.5],[T.type[1]+100,G.typed[0]+180,G.typed[1]+30,1.5],
+    // popup enters: wide
+    [T.enter[1],960,540,1.0],[T.idle[1]-400,960,540,1.0],
+    // act 2 — capture: one shot holding the left columns + footer through
+    // record, speech, stop and transcription
+    [T.clickRec[0],950,590,1.3],[T.stt[1],950,590,1.3],
+    // act 3 — draft: the XML column, one shot
+    [T.draft[0]+800,G.xml[0],G.xml[1]-30,1.4],[T.review[1]-400,G.xml[0],G.xml[1]-30,1.4],
+    // act 4a — the Grill flip: footer parked at the bottom edge
+    [T.clickGrill[0]-100,G.grill[0]+60,G.grill[1]-280,1.5],[T.clickGrill[1]+600,G.grill[0]+60,G.grill[1]-280,1.5],
+    // act 4b — questions: one shot for grilling, the cards and the chip click
+    [T.grilling[0]+1100,1180,470,1.35],[T.answered[1]-300,1180,470,1.35],
+    // act 4c — confirm: button + note
+    [T.clickConf[0]-200,G.conf[0]-40,G.conf[1]-290,1.5],[T.confirmed[1]-300,G.conf[0]-40,G.conf[1]-290,1.5],
+    // act 5 — wide, then the injected XML in the terminal
     [T.exit[1],960,540,1.0],[T.inject[0],960,540,1.0],
-    [T.inject[0]+600,G.inj[0],G.inj[1],1.5],[T.hold[1],G.inj[0],G.inj[1]+40,1.55],
-    [T.cardOut[0]+700,960,540,1.02],[DURATION,960,540,1.0]
+    [T.inject[0]+800,G.inj[0],G.inj[1],1.45],[T.hold[1],G.inj[0],G.inj[1],1.45],
+    [T.cardOut[0]+900,960,540,1.0],[DURATION,960,540,1.0]
   ];
 }
 function pathAt(path,t,dims){
@@ -358,17 +364,17 @@ const camPos=t=>pathAt(CAM,t,[0,0,0]);
 // pos 'b' = bottom (default) · 't' = top, used when the camera parks the
 // footer at the bottom of the frame so the caption must not cover it
 const CAPS=[
-  [1700,3100,'Inside <span class="m">Claude Code</span> — /stp:voice','b'],
-  [3400,4900,'A local popup — <span class="m">127.0.0.1</span>, token-gated','b'],
-  [5600,8700,'Talk it out — <span class="m">any length</span>, out of order is fine','b'],
-  [9400,11000,'Transcribed <span class="m">locally</span> with Whisper','b'],
-  [11300,12900,'Drafted <span class="m">outside your session</span>, grounded in your repo','b'],
-  [13100,14700,'A faithful structure of <span class="m">what you said</span> — nothing invented','b'],
-  [14900,16600,'Flip <span class="m">Grill</span> on — live, mid-review','t'],
-  [16900,18100,'The questions that are <span class="m">expensive to get wrong</span>','b'],
-  [18600,19600,'Answers stay <span class="m">local</span> until you confirm','b'],
-  [20100,22500,'Confirm — answers folded, <span class="m">one validated XML</span>','t'],
-  [23600,26300,'One prompt enters the session — <span class="m">the mess never does</span>','b']
+  [2400,5000,'Inside <span class="m">Claude Code</span> — /stp:voice','b'],
+  [5300,6900,'A local popup — <span class="m">127.0.0.1</span>, token-gated','b'],
+  [7600,11400,'Talk it out — <span class="m">any length</span>, out of order is fine','t'],
+  [12000,14400,'Transcribed <span class="m">locally</span> with Whisper','t'],
+  [14700,16800,'Drafted <span class="m">outside your session</span>, grounded in your repo','b'],
+  [17000,19600,'A faithful structure of <span class="m">what you said</span> — nothing invented','b'],
+  [19800,22400,'Flip <span class="m">Grill</span> on — live, mid-review','t'],
+  [22800,25300,'The questions that are <span class="m">expensive to get wrong</span>','b'],
+  [25600,27400,'Answers stay <span class="m">local</span> until you confirm','b'],
+  [28100,31100,'Confirm — answers folded, <span class="m">one validated XML</span>','t'],
+  [32800,36800,'One prompt enters the session — <span class="m">the mess never does</span>','b']
 ];
 
 function seek(t){
@@ -486,12 +492,12 @@ function seek(t){
   // title cards (opening + closing)
   const card=$('card');
   if(t<T.cardIn[1]){
-    card.style.opacity=1-prog(t,T.cardIn[1]-450,T.cardIn[1]);
-    $('card-big').innerHTML='Speech <span class="m">→</span> Prompt';
+    card.style.opacity=1-prog(t,T.cardIn[1]-500,T.cardIn[1]);
+    $('card-big').innerHTML='Speech <span class="m">TO</span> Prompt';
     $('card-sub').innerHTML='voice in · <span class="m">one structured XML prompt</span> out';
   } else if(t>=T.cardOut[0]){
-    card.style.opacity=prog(t,T.cardOut[0],T.cardOut[0]+500);
-    $('card-big').innerHTML='Speech <span class="m">→</span> Prompt';
+    card.style.opacity=prog(t,T.cardOut[0],T.cardOut[0]+700);
+    $('card-big').innerHTML='Speech <span class="m">TO</span> Prompt';
     $('card-sub').innerHTML='one confirmed XML · <span class="m">zero session pollution</span>';
   } else card.style.opacity=0;
 }

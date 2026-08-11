@@ -8,7 +8,7 @@ cd "$(dirname "$0")"
 FRAMES=${1:-_frames}
 OUT=${2:-../docs/demo.gif}
 WIDTH=${WIDTH:-1120}
-GIF_FPS=${GIF_FPS:-12}
+GIF_FPS=${GIF_FPS:-20}
 COLORS=${COLORS:-96}
 
 ffmpeg -y -framerate 30 -i "$FRAMES/frame_%05d.png" \
