@@ -6,6 +6,23 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.1.2] — 2026-08-11
+
+### Added
+- Draft modes: **Max** (default — STP proposes reasonable defaults alongside
+  what you said) and **Simple** (a faithful structuring of your own words
+  only), switchable in the popup's XML column header.
+- A **Cancel** button next to Confirm.
+
+### Changed
+- The transcription wait is now visibly alive: an indeterminate sweep runs
+  from the moment you press Stop until real progress percentages arrive.
+- The popup's sample/mock content clears the moment you first press Record.
+
+### Removed
+- The `<role>` section — dropped from the prompt skeleton (the parser still
+  tolerates it in edited XML).
+
 ## [0.1.1] — 2026-08-11
 
 ### Changed

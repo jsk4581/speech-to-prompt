@@ -109,15 +109,16 @@ export function finalizeConfirmed(
 /** Find the most recent usable transcript line in a transcript.jsonl body. */
 export function latestTranscript(
   jsonl: string,
-): { text: string; language?: string } | null {
+): { text: string; language?: string; mode?: string } | null {
   const lines = jsonl.split("\n").map((l) => l.trim()).filter(Boolean);
   for (let i = lines.length - 1; i >= 0; i--) {
     try {
-      const obj = JSON.parse(lines[i]) as { text?: unknown; language?: unknown };
+      const obj = JSON.parse(lines[i]) as { text?: unknown; language?: unknown; mode?: unknown };
       if (typeof obj.text === "string" && obj.text.trim()) {
         return {
           text: obj.text,
           language: typeof obj.language === "string" ? obj.language : undefined,
+          mode: obj.mode === "simple" || obj.mode === "max" ? obj.mode : undefined,
         };
       }
     } catch {
@@ -295,7 +296,7 @@ async function cmdTranscript(): Promise<void> {
     const latest = body ? latestTranscript(body) : null;
     if (latest) {
       if (out) await writeFile(out, latest.text, "utf8");
-      emit({ ready: true, out: out ?? null, chars: latest.text.length, language: latest.language ?? null });
+      emit({ ready: true, out: out ?? null, chars: latest.text.length, language: latest.language ?? null, mode: latest.mode ?? "max" });
       return;
     }
     if (!wait || Date.now() >= deadline) {

@@ -30,6 +30,7 @@ const els = {
   recordLabel: $("[data-role=record-label]"),
   progress: $("#stt-progress"),
   confirmBtn: $("#confirm-btn"),
+  cancelBtn: $("#cancel-btn"),
   settingsBtn: $("#settings-btn"),
 };
 
@@ -39,6 +40,8 @@ const state = {
   activeRound: null,
   events: null,
   answerTimer: 0,
+  /** sample/mock content is shown until the first Record press wipes it */
+  samplesCleared: false,
 };
 
 // ── helpers ──────────────────────────────────────────────────────────────────
@@ -146,21 +149,37 @@ function renderTranscript(text) {
   els.transcript.textContent = text || "(nothing captured)";
 }
 
-// Transcription progress bar (driven by SSE 'transcribe-progress').
+// Transcription progress bar (driven by SSE 'transcribe-progress'). Until the
+// first real percentage arrives (encode → upload → model load) the bar runs
+// indeterminate so the wait never looks dead.
 function showProgress() {
   if (!els.progress) return;
-  els.progress.value = 0;
+  els.progress.removeAttribute("value");
+  els.progress.classList.add("indet");
   els.progress.hidden = false;
 }
 function setProgress(pct) {
   if (!els.progress) return;
   const v = Math.max(0, Math.min(100, pct));
+  els.progress.classList.remove("indet");
   els.progress.hidden = false;
   els.progress.value = v;
   setStage(`transcribing… ${Math.round(v)}%`);
 }
 function hideProgress() {
-  if (els.progress) els.progress.hidden = true;
+  if (!els.progress) return;
+  els.progress.classList.remove("indet");
+  els.progress.hidden = true;
+}
+
+/** First Record press: wipe the sample content the static View ships with. */
+function clearSamples() {
+  if (state.samplesCleared) return;
+  state.samplesCleared = true;
+  renderTranscript("(listening…)");
+  if (els.xml) els.xml.textContent = "<!-- your draft appears here after you stop recording -->";
+  if (els.questions) els.questions.replaceChildren();
+  if (els.qcount) els.qcount.textContent = "0";
 }
 
 /**
@@ -248,6 +267,7 @@ async function toggleRecord() {
   try {
     if (!state.recorder.recording) {
       await state.recorder.start();
+      clearSamples();
       btn.classList.add("on");
       btn.setAttribute("aria-pressed", "true");
       if (els.recordLabel) els.recordLabel.textContent = "Stop";
@@ -258,8 +278,9 @@ async function toggleRecord() {
     btn.classList.remove("on");
     btn.setAttribute("aria-pressed", "false");
     if (els.recordLabel) els.recordLabel.textContent = "Re-record";
-    setStage("transcribing…");
+    setStage("processing audio…");
     showProgress();
+    renderTranscript("(transcribing…)");
     const { blob } = await state.recorder.stop();
     const res = await api("/transcribe", {
       method: "POST",
@@ -335,6 +356,29 @@ function onChipClick(chip) {
   pushAnswers();
 }
 
+/** Pick the draft mode; the helper reads it when the recording is transcribed. */
+function setMode(btn) {
+  const mode = btn.dataset.mode;
+  if (mode !== "simple" && mode !== "max") return;
+  for (const b of document.querySelectorAll(".chip.mode")) {
+    const on = b === btn;
+    b.classList.toggle("sel", on);
+    b.setAttribute("aria-pressed", on ? "true" : "false");
+  }
+  postJson("/mode", { mode }).catch(() => setStage("mode change failed"));
+}
+
+function cancelSession() {
+  postJson("/cancel")
+    .then(() => {
+      setStage("cancelled — you can close this window");
+      state.activeRound = null;
+      if (els.confirmBtn) els.confirmBtn.disabled = true;
+      if (els.cancelBtn) els.cancelBtn.disabled = true;
+    })
+    .catch(() => setStage("cancel failed"));
+}
+
 function confirmAndInject() {
   const xml = els.xml.textContent ?? "";
   // Delivery ≠ acceptance: the agent validates the confirmed XML and may reject
@@ -368,6 +412,12 @@ function wireEvents() {
         break;
       case "confirm":
         confirmAndInject();
+        break;
+      case "mode":
+        setMode(actor);
+        break;
+      case "cancel":
+        cancelSession();
         break;
       case "open-settings":
         setStage("settings · provider/BYOK (coming soon)");

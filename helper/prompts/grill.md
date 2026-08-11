@@ -27,9 +27,6 @@ fence. It is the working draft plus the open questions. The shape, wrapped in an
 {
   "lang": "en",
   "sections": [
-    { "name": "role", "segments": [
-      { "text": "A senior full-stack engineer familiar with this codebase", "source": "inferred" }
-    ]},
     { "name": "context", "segments": [
       { "text": "Add Google OAuth to the login page. Auto-create an account when none exists; show a toast on login failure.", "source": "said" }
     ]},
@@ -62,23 +59,22 @@ fence. It is the working draft plus the open questions. The shape, wrapped in an
   endpoints stay in English.
 - `sections` — an ordered list using these names, each included only when you
   have something real to say:
-  1. `role` — who the agent should be for this task.
-  2. `context` — the why and the motivation behind the request.
-  3. `references` — the repo files, symbols, and paths the work touches. Keep
+  1. `context` — the why and the motivation behind the request.
+  2. `references` — the repo files, symbols, and paths the work touches. Keep
      this near the top so the agent has its bearings before the instructions.
-  4. `objective` — the explicit goal, with `attrs.mode` of `"implement"`,
+  3. `objective` — the explicit goal, with `attrs.mode` of `"implement"`,
      `"advise"`, or `"?"` while it is still an open question.
-  5. `steps` — ordered instructions, when an order genuinely matters.
-  6. `examples` — concrete examples, when they sharpen the intent.
-  7. `guardrails` — what to steer clear of: over-engineering, hardcoding,
+  4. `steps` — ordered instructions, when an order genuinely matters.
+  5. `examples` — concrete examples, when they sharpen the intent.
+  6. `guardrails` — what to steer clear of: over-engineering, hardcoding,
      scope creep. This is the one place where "no …" phrasing belongs.
-  8. `success_criteria` — the definition of done, plus an explicit check the
+  7. `success_criteria` — the definition of done, plus an explicit check the
      agent can run to confirm its own work before finishing (for example,
      "verify by running the test suite" or "confirm the login e2e passes").
      Always include this; a prompt without it is not ready.
-  9. `output` — how the agent should report back, when that matters.
-  10. `ambiguity` — the escape hatch: invite a short clarifying question when a
-      requirement is unclear, rather than guessing.
+  8. `output` — how the agent should report back, when that matters.
+  9. `ambiguity` — the escape hatch: invite a short clarifying question when a
+     requirement is unclear, rather than guessing.
 - Each segment carries a `source`:
   - `said` — the user's own intent, lightly cleaned up.
   - `inferred` — a reasonable default you filled in. The popup shows these in
@@ -89,7 +85,24 @@ fence. It is the working draft plus the open questions. The shape, wrapped in an
   `text` in the user's language, optional `choices` for quick replies, and the
   section it `resolves`.
 
-## How to draft — blend, weighted toward proposing
+## Draft mode — max vs. simple
+
+The task that spawned you names a draft mode. Default to `max` when none is
+given.
+
+- **`max`** — the full blend described below: fill gaps with reasonable
+  `inferred` proposals, ground them in the repo, and ask the few expensive
+  questions.
+- **`simple`** — a faithful structuring pass, not an authoring pass. Clean the
+  user's speech (drop filler, fix word breaks) and place *only what they said*
+  into the fitting sections as `said` segments. Invent nothing: no proposed
+  guardrails, no invented references or steps the user didn't imply. Two
+  structural needs still apply because the confirm gate enforces them — the
+  objective `mode` and `success_criteria`: take them from the user's words when
+  present, otherwise ask for them (those are the only questions a simple draft
+  should carry).
+
+## How to draft in `max` — blend, weighted toward proposing
 
 Fill the gaps a reasonable engineer would fill, and mark those as `inferred`.
 Reserve `question` slots for the few choices that are expensive to get wrong.

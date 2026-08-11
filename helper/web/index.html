@@ -45,6 +45,10 @@
     <!-- COLUMN 2 : the XML to inject -->
     <section class="col xml-col scroll" data-col="xml">
       <div class="colh"><span class="label blue">XML to inject</span><span class="spacerflex"></span>
+        <span class="modes" role="group" aria-label="Draft mode" title="Simple = only what you said, structured · Max = STP also proposes defaults">
+          <button class="chip mode" data-action="mode" data-mode="simple" type="button" aria-pressed="false">Simple</button>
+          <button class="chip mode sel" data-action="mode" data-mode="max" type="button" aria-pressed="true">Max</button>
+        </span>
         <span class="keyhint">editable</span></div>
       <div class="legend">
         <span><span class="sw" style="background:rgba(46,160,67,.4);border:1px solid #2EA043"></span>STP proposal</span>
@@ -53,8 +57,6 @@
       </div>
 <pre class="xml" id="xml-editor" data-role="xml" contenteditable spellcheck="false"><span class="cmt">&lt;!-- drafted by STP · 3 questions open · grounded in your repo --&gt;</span>
 <span class="p">&lt;</span><span class="tag">task</span><span class="p">&gt;</span>
-  <span class="p">&lt;</span><span class="tag">role</span><span class="p">&gt;</span><span class="add">A senior full-stack engineer familiar with this codebase</span><span class="p">&lt;/</span><span class="tag">role</span><span class="p">&gt;</span>
-
   <span class="p">&lt;</span><span class="tag">context</span><span class="p">&gt;</span>
     Add Google OAuth to the login page. Auto-create an account
     when none exists; show a toast on login failure.
@@ -103,7 +105,10 @@
   </main>
 
   <footer class="footer">
-    <button class="btn primary" id="confirm-btn" data-action="confirm" type="button">Confirm · inject into session →</button>
+    <div class="actions">
+      <button class="btn ghost" id="cancel-btn" data-action="cancel" type="button">Cancel</button>
+      <button class="btn primary" id="confirm-btn" data-action="confirm" type="button">Confirm · inject into session →</button>
+    </div>
   </footer>
 
 </div>
