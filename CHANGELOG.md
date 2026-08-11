@@ -6,6 +6,16 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.1.3] — 2026-08-11
+
+### Changed
+- Cancel moved to the right of Confirm.
+- New opt-in `STP_ALLOWED_HOSTS` (comma-separated hostnames): lets an HTTPS
+  front on a private overlay network (e.g. `tailscale serve`) serve the popup
+  without an SSH tunnel on headless machines. Default unchanged: loopback
+  only, per-run token always required; only https origins are accepted for
+  trusted fronts.
+
 ## [0.1.2] — 2026-08-11
 
 ### Added

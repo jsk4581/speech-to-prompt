@@ -136,21 +136,47 @@ function presentedToken(req: IncomingMessage, url: URL): string | undefined {
   return url.searchParams.get("t") ?? undefined;
 }
 
-/** Reject any Host header that isn't loopback (blocks DNS-rebinding). */
-function isLoopbackHost(host: string | undefined): boolean {
-  if (!host) return false;
+/**
+ * Extra hostnames the user explicitly trusts in front of the helper —
+ * STP_ALLOWED_HOSTS, comma-separated. For headless setups where an
+ * HTTPS reverse proxy on a private overlay network (e.g. `tailscale serve`)
+ * fronts the loopback helper so the popup opens without an SSH tunnel.
+ * Default: empty — loopback only. The per-run token still gates every request.
+ */
+function extraAllowedHosts(): string[] {
+  return (process.env.STP_ALLOWED_HOSTS ?? "")
+    .split(",")
+    .map((h) => h.trim().toLowerCase())
+    .filter(Boolean);
+}
+
+function hostName(host: string): string {
   let name = host;
   const close = host.indexOf("]"); // IPv6 "[::1]:port"
   const colon = host.lastIndexOf(":");
   if (colon > close) name = host.slice(0, colon);
-  name = name.replace(/^\[|\]$/g, "");
-  return name === "127.0.0.1" || name === "localhost" || name === "::1";
+  return name.replace(/^\[|\]$/g, "");
 }
 
-/** State-changing requests must originate from the loopback page (blocks CSRF). */
+/** Reject any Host header that isn't loopback or explicitly trusted (blocks DNS-rebinding). */
+function isLoopbackHost(host: string | undefined): boolean {
+  if (!host) return false;
+  const name = hostName(host);
+  if (name === "127.0.0.1" || name === "localhost" || name === "::1") return true;
+  return extraAllowedHosts().includes(name.toLowerCase());
+}
+
+/** State-changing requests must originate from the popup's own page (blocks CSRF). */
 function isAllowedOrigin(origin: string | undefined, port: number): boolean {
   if (!origin) return true; // non-browser client (agent curl) sends no Origin
-  return origin === `http://127.0.0.1:${port}` || origin === `http://localhost:${port}`;
+  if (origin === `http://127.0.0.1:${port}` || origin === `http://localhost:${port}`) return true;
+  try {
+    const u = new URL(origin);
+    // Trusted fronts terminate TLS themselves, so require https there.
+    return u.protocol === "https:" && extraAllowedHosts().includes(u.hostname.toLowerCase());
+  } catch {
+    return false;
+  }
 }
 
 async function serveStatic(res: ServerResponse, webDir: string, pathname: string): Promise<void> {
