@@ -37,6 +37,7 @@ const els = {
   tabs: $("#xml-tabs"),
   xmlHint: $("#xml-hint"),
   drafting: $("#drafting"),
+  draftingQ: $("#drafting-q"),
 };
 
 const state = {
@@ -198,13 +199,16 @@ function hideProgress() {
   els.progress.hidden = true;
 }
 
-// Circular spinner over the XML pane while the drafting LLM works (between the
-// transcript landing and the first/next round arriving).
+// Circular spinners over the XML and questions panes while the drafting LLM
+// works (between the transcript landing and the first/next round arriving).
 function showDrafting() {
-  if (els.drafting && !state.stale) els.drafting.hidden = false;
+  if (state.stale) return;
+  if (els.drafting) els.drafting.hidden = false;
+  if (els.draftingQ) els.draftingQ.hidden = false;
 }
 function hideDrafting() {
   if (els.drafting) els.drafting.hidden = true;
+  if (els.draftingQ) els.draftingQ.hidden = true;
 }
 
 /** First Record press: wipe the sample content the static View ships with. */

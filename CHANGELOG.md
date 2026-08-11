@@ -6,6 +6,13 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.2.5] — 2026-08-11
+
+### Changed
+- The Enhance and Grill pill toggles now share one fixed width.
+- The drafting wait covers the questions pane too: a second spinner
+  ("grilling…") runs there alongside the XML one until the round arrives.
+
 ## [0.2.4] — 2026-08-11
 
 ### Added

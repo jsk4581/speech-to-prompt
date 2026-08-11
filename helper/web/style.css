@@ -97,7 +97,7 @@ body{font-family:var(--ui);color:var(--text-1);letter-spacing:-.01em;
 /* Footer setting switches (Enhance · Grill): pill toggles with the label
    inside the button and a knob that slides off-side ↔ on-side */
 .switch{position:relative;display:inline-flex;align-items:center;justify-content:center;
-  height:28px;padding:0 27px;border-radius:14px;border:1px solid var(--border-2);
+  height:28px;width:104px;padding:0 20px;border-radius:14px;border:1px solid var(--border-2);
   background:var(--surface-2);cursor:pointer;user-select:none;
   transition:background .18s ease,border-color .18s ease}
 .switch input{position:absolute;opacity:0;pointer-events:none}
@@ -126,6 +126,7 @@ code{font-family:var(--mono);font-size:.92em;color:var(--attr)}
 
 /* xml */
 .xml-col{position:relative}
+.q-col{position:relative}
 /* Circular drafting indicator — covers the XML pane between "transcript is in"
    and "the drafted round arrives" (the LLM is thinking out of session) */
 .drafting{position:absolute;inset:0;z-index:2;display:flex;flex-direction:column;
