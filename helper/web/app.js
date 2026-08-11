@@ -148,7 +148,7 @@ function connectEvents() {
   });
   es.addEventListener("edit", (e) => {
     const data = safeJson(e.data);
-    if (typeof data.xml === "string") els.xml.textContent = data.xml;
+    if (typeof data.xml === "string") renderXml(data.xml);
   });
   // First-run model bootstrap progress; the helper pushes these while a
   // model is still downloading. Phase names come from the bootstrap (check ·
@@ -177,6 +177,58 @@ function safeJson(s) {
 
 function renderTranscript(text) {
   els.transcript.textContent = text || "(nothing captured)";
+}
+
+// ── XML syntax colors (same palette as the static sample: .cmt/.p/.tag/.attr/.str)
+// The pane stays plain editable text underneath — spans only paint it, and all
+// read-back goes through textContent, which spans don't disturb. Hand edits
+// just grow uncolored until the next round repaints; that's fine.
+
+const escapeHtml = (s) =>
+  s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+function highlightAttrs(s) {
+  const re = /([\w:.-]+)(\s*=\s*)("[^"]*"|'[^']*')/g;
+  let out = "";
+  let last = 0;
+  let m;
+  while ((m = re.exec(s))) {
+    out += escapeHtml(s.slice(last, m.index));
+    out +=
+      `<span class="attr">${escapeHtml(m[1])}</span>` +
+      `<span class="p">${escapeHtml(m[2])}</span>` +
+      `<span class="str">${escapeHtml(m[3])}</span>`;
+    last = re.lastIndex;
+  }
+  return out + escapeHtml(s.slice(last));
+}
+
+function highlightXml(src) {
+  const re =
+    /(<!--[\s\S]*?(?:-->|$))|(<\/?)([A-Za-z][\w:.-]*)((?:"[^"]*"|'[^']*'|[^>"'])*)(\/?>)/g;
+  let out = "";
+  let last = 0;
+  let m;
+  while ((m = re.exec(src))) {
+    out += escapeHtml(src.slice(last, m.index));
+    if (m[1]) {
+      out += `<span class="cmt">${escapeHtml(m[1])}</span>`;
+    } else {
+      out +=
+        `<span class="p">${escapeHtml(m[2])}</span>` +
+        `<span class="tag">${escapeHtml(m[3])}</span>` +
+        highlightAttrs(m[4]) +
+        `<span class="p">${escapeHtml(m[5])}</span>`;
+    }
+    last = re.lastIndex;
+  }
+  return out + escapeHtml(src.slice(last));
+}
+
+/** Paint XML into the editor pane with the syntax palette. */
+function renderXml(text) {
+  if (!els.xml) return;
+  els.xml.innerHTML = highlightXml(String(text));
 }
 
 // Transcription progress bar (driven by SSE 'transcribe-progress'). Until the
@@ -224,7 +276,7 @@ function clearSamples() {
   if (state.samplesCleared) return;
   state.samplesCleared = true;
   renderTranscript("(listening…)");
-  if (els.xml) els.xml.textContent = "<!-- your draft appears here after you stop recording -->";
+  renderXml("<!-- your draft appears here after you stop recording -->");
   if (els.questions) els.questions.replaceChildren();
   if (els.qcount) els.qcount.textContent = "0";
   state.xmlBuffers = null;
@@ -247,7 +299,7 @@ function selectTab(tab) {
   // Keep any hand edits: stash the outgoing tab's text before swapping.
   state.xmlBuffers[state.activeTab] = els.xml.textContent ?? "";
   state.activeTab = tab;
-  els.xml.textContent = state.xmlBuffers[tab];
+  renderXml(state.xmlBuffers[tab]);
   showTabs(true);
 }
 
@@ -299,11 +351,11 @@ function renderRound(round) {
       // opted into); Confirm injects whichever tab is open.
       state.xmlBuffers = { default: round.draftXml, enhanced: round.enhancedXml };
       state.activeTab = "enhanced";
-      els.xml.textContent = state.xmlBuffers[state.activeTab];
+      renderXml(state.xmlBuffers[state.activeTab]);
       showTabs(true);
     } else {
       state.xmlBuffers = null;
-      els.xml.textContent = round.draftXml;
+      renderXml(round.draftXml);
       showTabs(false);
     }
   }

@@ -6,6 +6,15 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.2.10] — 2026-08-11
+
+### Added
+- Live drafts in the XML pane now render with syntax colors — tags, attributes,
+  strings, and comments use the same editor palette as the static sample, in
+  every path that repaints the pane (rounds, tab switches, agent edits, the
+  post-record placeholder). The pane stays plain editable text underneath;
+  hand edits simply grow uncolored until the next round repaints.
+
 ## [0.2.9] — 2026-08-11
 
 ### Changed
