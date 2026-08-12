@@ -54,3 +54,6 @@ Thumbs.db
 
 # demo harness (kept local — only docs/demo.gif ships)
 demo/
+
+# QA reproduction set (kept local — dev asset; plugin installs copy the whole repo)
+qa-macos/
