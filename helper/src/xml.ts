@@ -293,6 +293,97 @@ export function assertInjectable(draft: GrillDraft): void {
   }
 }
 
+/**
+ * Remove leftover question-slot text from a confirmed draft, using the round
+ * draft (which still carries `source: "question"` provenance) as the reference.
+ *
+ * Why here and not in assertInjectable: parseXml cannot recover provenance from
+ * the round-tripped XML, so the "no open slots" invariant is unenforceable
+ * after a confirm — and rejecting at confirm would break the normal flow, where
+ * slots are legitimately still present the moment the user confirms with
+ * answers attached. Decision (issue #6): confirm always proceeds; slot phrasing
+ * that survived into the confirmed document is dropped mechanically, so an
+ * unanswered question is discarded instead of leaking into the coding agent's
+ * prompt as instructions. A slot the user hand-edited no longer matches its
+ * published text and is kept verbatim — user edits are law.
+ */
+export function stripQuestionSlots(draft: GrillDraft, roundDraft: GrillDraft): GrillDraft {
+  const slots: string[] = [];
+  for (const sections of [roundDraft.sections ?? [], roundDraft.enhanced ?? []]) {
+    for (const section of sections) {
+      for (const seg of section.segments ?? []) {
+        if (seg.source === "question" && seg.text?.trim()) slots.push(seg.text.trim());
+      }
+    }
+  }
+  if (slots.length === 0) return draft;
+
+  const sections = draft.sections.map((section) => ({
+    ...section,
+    segments: section.segments.map((seg) => {
+      let text = seg.text;
+      for (const slot of slots) while (text.includes(slot)) text = text.replace(slot, "");
+      return { ...seg, text };
+    }),
+  }));
+  return { ...draft, sections };
+}
+
+/**
+ * Structural validation for a GrillDraft that came out of a file (the drafting
+ * subagent writes draft.json — an LLM artifact, so malformed shapes are a real
+ * possibility). Returns human-readable problems that point at the offending
+ * section/segment instead of letting the generator die on a bare
+ * "Cannot read properties of undefined".
+ */
+export function draftShapeProblems(d: unknown): string[] {
+  const problems: string[] = [];
+  if (!d || typeof d !== "object") return ["draft is not an object"];
+  const draft = d as Record<string, unknown>;
+
+  const checkSections = (value: unknown, label: string): void => {
+    if (!Array.isArray(value)) {
+      problems.push(`${label} is ${value === undefined ? "missing" : "not an array"}`);
+      return;
+    }
+    value.forEach((s, i) => {
+      const at = `${label}[${i}]`;
+      if (!s || typeof s !== "object") {
+        problems.push(`${at} is not an object`);
+        return;
+      }
+      const sec = s as Record<string, unknown>;
+      const name = typeof sec.name === "string" ? `<${sec.name}>` : "(unnamed)";
+      if (typeof sec.name !== "string") problems.push(`${at}: name is missing (expected a section name string)`);
+      if (!Array.isArray(sec.segments)) {
+        problems.push(`${at} ${name}: segments is ${sec.segments === undefined ? "missing" : "not an array"}`);
+        return;
+      }
+      (sec.segments as unknown[]).forEach((seg, j) => {
+        if (!seg || typeof seg !== "object" || typeof (seg as Record<string, unknown>).text !== "string") {
+          problems.push(`${at} ${name}: segments[${j}].text is missing (expected string)`);
+        }
+      });
+    });
+  };
+
+  checkSections(draft.sections, "sections");
+  if (draft.enhanced !== undefined) checkSections(draft.enhanced, "enhanced");
+
+  if (draft.questions !== undefined) {
+    if (!Array.isArray(draft.questions)) {
+      problems.push("questions is not an array");
+    } else {
+      draft.questions.forEach((q, i) => {
+        if (!q || typeof q !== "object" || typeof (q as Record<string, unknown>).text !== "string") {
+          problems.push(`questions[${i}].text is missing (expected string)`);
+        }
+      });
+    }
+  }
+  return problems;
+}
+
 // ── generate ────────────────────────────────────────────────────────────────
 
 export interface GenerateOptions {

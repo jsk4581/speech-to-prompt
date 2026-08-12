@@ -13,6 +13,9 @@
 
 export const TARGET_SAMPLE_RATE = 16000;
 
+/** How long a prewarmed (idle) mic stream is held before it is released. */
+export const PREWARM_IDLE_MS = 30_000;
+
 /** Pick a MediaRecorder mime type the current browser actually supports. */
 function pickMimeType() {
   const candidates = [
@@ -44,7 +47,10 @@ const CAPTURE_CONSTRAINTS = {
  *
  * `prewarm()` acquires the stream ahead of the first press: the OS permission
  * prompt and device spin-up otherwise land inside `start()`, and a user who
- * starts talking on the press loses their first words to that latency.
+ * starts talking on the press loses their first words to that latency. A
+ * prewarmed stream that sees no Record press within PREWARM_IDLE_MS is
+ * released again — an open popup must not hold the mic (and light the OS
+ * recording indicator) indefinitely; the next press just reacquires.
  */
 export class Recorder {
   constructor() {
@@ -52,6 +58,7 @@ export class Recorder {
     this._recorder = null;
     this._chunks = [];
     this._startedAt = 0;
+    this._prewarmTimer = null;
   }
 
   get recording() {
@@ -62,14 +69,25 @@ export class Recorder {
     return Boolean(this._stream?.getTracks().some((t) => t.readyState === "live"));
   }
 
-  /** Open the mic early and hold it so `start()` is instant. Safe to re-call. */
-  async prewarm() {
+  /** Open the mic early so `start()` is instant; auto-release when unused. */
+  async prewarm(idleMs = PREWARM_IDLE_MS) {
     if (this.recording || this._streamLive()) return;
     this._stream = await navigator.mediaDevices.getUserMedia(CAPTURE_CONSTRAINTS);
+    clearTimeout(this._prewarmTimer);
+    this._prewarmTimer = setTimeout(() => this._releaseIdleStream(), idleMs);
+  }
+
+  /** Drop a prewarmed-but-unused stream (frees the mic + the OS indicator). */
+  _releaseIdleStream() {
+    if (this.recording || !this._stream) return;
+    for (const track of this._stream.getTracks()) track.stop();
+    this._stream = null;
   }
 
   async start() {
     if (this.recording) return;
+    clearTimeout(this._prewarmTimer);
+    this._prewarmTimer = null;
     if (!this._streamLive()) {
       this._stream = await navigator.mediaDevices.getUserMedia(CAPTURE_CONSTRAINTS);
     }

@@ -377,6 +377,10 @@ export interface SttPlan {
   model: string;
   threads?: number;
   mode?: "local" | "byok";
+  /** Silero VAD model path — trims non-speech (kills the quiet-tail hallucination). */
+  vad?: string;
+  /** Human-readable selection note (surfaced to the popup when no engine exists). */
+  reason?: string;
   [k: string]: unknown;
 }
 
@@ -427,7 +431,11 @@ export interface VoiceSession extends RunningServer {
  */
 export async function startVoiceSession(opts: VoiceSessionOptions): Promise<VoiceSession> {
   const hub = new SseHub();
-  const language = opts.language ?? process.env.STP_LANG ?? "auto";
+  // Whisper fixes one language per file, so a mixed-language recording can lose
+  // whole passages of the other language (issue #3). `auto` stays the default;
+  // the popup's footer selector (POST /mode { lang }) pins it per session when
+  // the user knows what they spoke. STP_LANG sets the launch default.
+  let language = opts.language ?? process.env.STP_LANG ?? "auto";
   const threads = opts.threads ?? (Number(process.env.STP_THREADS) || undefined);
   const transcriptDir =
     opts.transcriptDir ?? process.env.STP_TRANSCRIPT_DIR ?? join(tmpdir(), "stp");
@@ -478,6 +486,26 @@ export async function startVoiceSession(opts: VoiceSessionOptions): Promise<Voic
         });
     }
     return planInFlight;
+  };
+
+  /**
+   * Speech-engine status for the popup, sent with the SSE `ready` event and
+   * re-broadcast as `stt` once the resolver settles. "unavailable" carries the
+   * actionable reason (e.g. `brew install whisper-cpp` on macOS) so the user
+   * learns BEFORE recording that Stop would go nowhere — not after their whole
+   * spoken intent is already lost (issue #4).
+   */
+  const sttStatus = (): { whisper: string; reason?: string; language: string } => {
+    if (plan && plan.mode !== "byok") return { whisper: "ready", language };
+    if (plan) {
+      return {
+        whisper: "unavailable",
+        reason: typeof plan.reason === "string" && plan.reason ? plan.reason : "no local speech engine",
+        language,
+      };
+    }
+    if (planInFlight || opts.resolveStt) return { whisper: "preparing", language };
+    return { whisper: "unavailable", reason: planErr || "whisper not configured", language };
   };
 
   // Agent ↔ popup bus. A single in-flight agent long-poll; popup events resolve
@@ -555,7 +583,7 @@ export async function startVoiceSession(opts: VoiceSessionOptions): Promise<Voic
     "GET /events": (_req, res, ctx) => {
       hub.attach(res);
       hub.broadcast("ready", {
-        whisper: plan ? "ready" : "absent",
+        ...sttStatus(),
         stage: "capture",
         run: ctx.token.slice(0, 8),
       });
@@ -572,7 +600,11 @@ export async function startVoiceSession(opts: VoiceSessionOptions): Promise<Voic
         return;
       }
       if (p.mode === "byok") {
-        sendJson(res, 503, { error: "BYOK cloud STT is not wired yet" });
+        // No local engine on this machine and cloud STT is not wired yet — the
+        // reason is the actionable part (e.g. the brew install line on macOS).
+        sendJson(res, 503, {
+          error: typeof p.reason === "string" && p.reason ? p.reason : "no local speech engine",
+        });
         return;
       }
       const wav = await readBody(req);
@@ -586,15 +618,22 @@ export async function startVoiceSession(opts: VoiceSessionOptions): Promise<Voic
       try {
         // plan.threads beats the env default — avoids whisper's `-t 4` default
         // (barely real-time even on a fast CPU).
-        const result = await transcribe({
+        const opts = {
           bin: p.bin,
           model: p.model,
           wavPath: tmp,
           language,
           threads: p.threads ?? threads,
+          vadModel: typeof p.vad === "string" && p.vad ? p.vad : undefined,
           // Stream whisper's progress to the popup so it can show a bar while a
           // (possibly long) recording transcribes.
-          onProgress: (pct) => hub.broadcast("transcribe-progress", { pct }),
+          onProgress: (pct: number) => hub.broadcast("transcribe-progress", { pct }),
+        };
+        const result = await transcribe(opts).catch(async (e) => {
+          // A user-provided binary (brew, old system install) may predate
+          // `--vad`. Retry once without it rather than failing the recording.
+          if (!opts.vadModel) throw e;
+          return transcribe({ ...opts, vadModel: undefined });
         });
         await appendFile(
           transcriptFile,
@@ -638,13 +677,22 @@ export async function startVoiceSession(opts: VoiceSessionOptions): Promise<Voic
 
     // popup → agent terminal events (resolve the held long-poll).
     // popup → helper: draft settings (before Stop; read at /transcribe time).
-    // Accepts either or both of { mode, grill }.
+    // Accepts any of { mode, grill, lang }.
     "POST /mode": async (req, res) => {
       touch();
-      const body = (await readJson(req)) as { mode?: unknown; grill?: unknown };
-      if (body.mode === undefined && body.grill === undefined) {
-        sendJson(res, 400, { error: "send mode and/or grill" });
+      const body = (await readJson(req)) as { mode?: unknown; grill?: unknown; lang?: unknown };
+      if (body.mode === undefined && body.grill === undefined && body.lang === undefined) {
+        sendJson(res, 400, { error: "send mode, grill and/or lang" });
         return;
+      }
+      // Transcription language — applies to the NEXT recording; unlike
+      // mode/grill it never triggers a redraft of the current round.
+      if (body.lang !== undefined) {
+        if (body.lang !== "auto" && body.lang !== "ko" && body.lang !== "en") {
+          sendJson(res, 400, { error: 'lang must be "auto", "ko" or "en"' });
+          return;
+        }
+        language = body.lang;
       }
       if (body.mode !== undefined) {
         if (body.mode !== "default" && body.mode !== "enhance") {
@@ -660,16 +708,17 @@ export async function startVoiceSession(opts: VoiceSessionOptions): Promise<Voic
         }
         grillOn = body.grill === "on";
       }
-      // Mid-round, a settings flip is a live control: hand the agent a
+      // Mid-round, a mode/grill flip is a live control: hand the agent a
       // `settings` outcome so it redrafts the current document with the new
-      // recipe. Never clobber an already-queued terminal outcome (e.g. a
-      // confirm the agent hasn't picked up yet); coalesce repeated flips.
-      if (currentRound) {
+      // recipe (a lang-only change redrafts nothing). Never clobber an
+      // already-queued terminal outcome (e.g. a confirm the agent hasn't
+      // picked up yet); coalesce repeated flips.
+      if (currentRound && (body.mode !== undefined || body.grill !== undefined)) {
         const s: AgentOutcome = { status: "settings", mode: draftMode, grill: grillOn ? "on" : "off" };
         if (pending) resolveAgent(s);
         else if (!queued || queued.status === "settings") queued = s;
       }
-      sendJson(res, 200, { ok: true, mode: draftMode, grill: grillOn ? "on" : "off" });
+      sendJson(res, 200, { ok: true, mode: draftMode, grill: grillOn ? "on" : "off", lang: language });
     },
 
     "POST /answer": async (req, res) => {
@@ -713,6 +762,14 @@ export async function startVoiceSession(opts: VoiceSessionOptions): Promise<Voic
     token: opts.token,
     handlers,
   });
+
+  // Resolve the speech plan in the background right away (memoized with the
+  // caller's own prewarm of the same resolver) and tell the popup how it
+  // landed — this is what lets a machine with no engine say so BEFORE the
+  // user records, instead of after their spoken intent is already lost.
+  if (!plan && opts.resolveStt) {
+    void ensurePlan().then(() => hub.broadcast("stt", sttStatus()));
+  }
 
   // SSE keep-alive.
   const ka = setInterval(() => hub.ping(), KEEPALIVE_MS);

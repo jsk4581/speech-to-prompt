@@ -151,9 +151,11 @@ outcome and act on `status`:
   server-side, so one redraft may cover several (e.g. enhance *and* grill in
   a single `settings` outcome).
 - **`confirmed` + `"ok":true`** — the user confirmed and the prompt passed the
-  invariants. When the outcome's `answers` carry any non-null `choice` or
-  `text`, the user answered questions and confirmed in one stroke — fold
-  before injecting: spawn the drafting subagent once more (model per step 3's
+  invariants (question-slot phrasing from unanswered questions has already
+  been stripped mechanically — an unanswered question is discarded, never
+  injected as instructions). When the outcome's `answers` carry any non-null
+  `choice` or `text`, the user answered questions and confirmed in one
+  stroke — fold before injecting: spawn the drafting subagent once more (model per step 3's
   rule) with `<RUN>/final.xml` (the confirmed document — every user edit in
   it is law), `<RUN>/draft.json` (for the question texts), and the answers.
   It rewrites `<RUN>/final.xml` with the answers reflected (e.g. an answered
@@ -161,8 +163,8 @@ outcome and act on `status`:
   lands in the fitting section) and changes nothing the user wrote. Then go
   to step 5 with `finalOut`. With no real answers, go straight to step 5.
 - **`confirmed` + `"ok":false`** — the confirmed XML is not injection-ready
-  (`problem` says why, e.g. an open question slot or an invalid objective
-  mode). Tell the user plainly, then resume waiting so they can fix it in
+  (`problem` says why, e.g. an all-caps emphasis word or an invalid
+  objective mode). Tell the user plainly, then resume waiting so they can fix it in
   the popup and confirm again:
   `… grill.js poll --final-out <RUN>/final.xml`.
 - **`cancelled`** or **`popup_closed`** — the user stopped or closed the popup.
@@ -186,9 +188,10 @@ partial prompt.
 
 ## Notes
 
-- The first run downloads the Whisper binary and model; the popup shows progress.
-  On machines where local transcription is too slow, the helper recommends a
-  cloud speech provider you supply a key for (configured in the popup).
+- The first run downloads the Whisper binary and model; the popup shows
+  progress. On macOS there is no prebuilt binary — the user installs one with
+  `brew install whisper-cpp` (the popup says so before recording). BYOK cloud
+  speech providers are planned but not wired yet.
 - The helper binds `127.0.0.1` only and gates every request with a per-launch
   token, so no other local process can read the transcript or inject a prompt.
 - If the popup is closed and this session stops polling, the helper shuts itself

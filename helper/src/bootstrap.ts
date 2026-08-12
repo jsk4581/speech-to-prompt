@@ -71,6 +71,8 @@ export interface SttPlan {
   model?: string;
   /** Selected tier (mode==="local"). */
   tier?: Tier;
+  /** Silero VAD model path when available (mode==="local"); trims non-speech. */
+  vad?: string;
   /** Suggested `-t` worker count = physical-ish core count. */
   threads: number;
   /** True when local is too slow/unsupported and cloud STT is the better path. */
@@ -129,6 +131,16 @@ const MODELS: Record<Tier, ModelSpec> = {
     url: `${HF_BASE}/ggml-large-v3-turbo-q8_0.bin`,
     approxBytes: 875 * 1024 * 1024,
   },
+};
+
+// Silero VAD model for whisper's `--vad`: trims non-speech before decoding,
+// which kills the quiet-tail hallucination (a near-empty final 30s window grows
+// a sentence nobody spoke — issue #7, reproduced + benched in qa-macos/).
+// Official ggml conversion; ~0.9MB, so it rides along with any tier.
+const VAD_MODEL: ModelSpec = {
+  file: "ggml-silero-v5.1.2.bin",
+  url: "https://huggingface.co/ggml-org/whisper-vad/resolve/main/ggml-silero-v5.1.2.bin",
+  approxBytes: 1024 * 1024,
 };
 
 // D6: OS/arch official prebuilt whisper.cpp CLI. Pinned to a verified release;
@@ -202,11 +214,15 @@ const exists = (p: string) =>
  */
 export function recommendedThreads(): number {
   const logical = Math.max(1, cpus().length);
-  // Hybrid Intel parts have logical = physical + P-cores (only P-cores SMT), so
-  // plain logical/2 undercounts them — `logical - 8` tracks physical better on
-  // big parts and still leaves the machine headroom. Cap 24: flat beyond.
+  // No SMT on arm64 (Apple Silicon and most ARM parts): logical == physical, so
+  // halving would undercount (an M4 is 10/10, not 20/10). x86: hybrid Intel
+  // parts have logical = physical + P-cores (only P-cores SMT), so plain
+  // logical/2 undercounts them — `logical - 8` tracks physical better on big
+  // parts and still leaves headroom. Cap 24: flat beyond.
   const physical =
-    logical >= 16 ? logical - 8 : logical >= 8 ? Math.floor(logical / 2) : logical;
+    process.arch === "arm64"
+      ? logical
+      : logical >= 16 ? logical - 8 : logical >= 8 ? Math.floor(logical / 2) : logical;
   return Math.min(24, Math.max(1, physical));
 }
 
@@ -468,6 +484,28 @@ async function ensureModel(tier: Tier, onProgress?: EnsureOptions["onProgress"])
   return dest;
 }
 
+/**
+ * Ensure the silero VAD model is present. Best-effort: transcription works
+ * without it (just with the quiet-tail hallucination back), so a download
+ * failure degrades instead of blocking the whole bootstrap.
+ * STP_VAD=0 opts out; STP_VAD_MODEL points at an existing file.
+ */
+async function ensureVadModel(onProgress?: EnsureOptions["onProgress"]): Promise<string | undefined> {
+  if (/^(0|false|no|off)$/i.test(process.env.STP_VAD ?? "")) return undefined;
+  if (process.env.STP_VAD_MODEL && (await exists(process.env.STP_VAD_MODEL))) {
+    return process.env.STP_VAD_MODEL;
+  }
+  const dest = join(modelsDir(), VAD_MODEL.file);
+  if (await exists(dest)) return dest;
+  try {
+    await download(VAD_MODEL.url, dest, { expectedBytes: VAD_MODEL.approxBytes });
+    return dest;
+  } catch {
+    onProgress?.({ kind: "check", message: "VAD model download failed — continuing without it" });
+    return undefined;
+  }
+}
+
 // ──────────────────────────── BYOK branch ──────────────────────────────────
 
 /** A BYOK plan — local skipped or judged unrealistic. M6 wires keys + calls. */
@@ -514,12 +552,12 @@ async function run(opts: EnsureOptions): Promise<SttPlan> {
   // 1. Binary.
   const bin = await ensureBinary(onProgress);
   if (!bin) {
-    // No prebuilt CLI and none installed (typically macOS). Recommend BYOK, and
-    // point at the brew bottle for users who want to stay local.
+    // No prebuilt CLI and none installed (typically macOS). Point at the brew
+    // bottle — the one path that works today (BYOK cloud STT is not wired yet).
     const reason =
       process.platform === "darwin"
-        ? "No prebuilt whisper-cli on macOS. Install it with `brew install whisper-cpp`, or use BYOK cloud STT."
-        : "No whisper-cli available for this platform. Use BYOK cloud STT, or install whisper.cpp manually.";
+        ? "No speech engine yet — whisper.cpp ships no prebuilt CLI for macOS. Install it with `brew install whisper-cpp`, then reopen this popup."
+        : "No speech engine yet — no prebuilt whisper-cli for this platform. Install whisper.cpp manually so it is on PATH, then reopen this popup.";
     const plan = byokPlan(reason, true);
     onProgress?.({ kind: "select", mode: "byok", reason });
     return plan;
@@ -532,8 +570,9 @@ async function run(opts: EnsureOptions): Promise<SttPlan> {
   const envTier = process.env.STP_STT_TIER;
   const tier: Tier = isTier(envTier) ? envTier : (cfg?.stt.tier ?? heuristicTier());
 
-  // 3. Model for the chosen tier.
+  // 3. Model for the chosen tier, plus the small VAD model (best-effort).
   const model = await ensureModel(tier, onProgress);
+  const vad = await ensureVadModel(onProgress);
 
   await saveConfig({ version: 1, stt: { mode: "local", tier, threads } });
 
@@ -554,6 +593,7 @@ async function run(opts: EnsureOptions): Promise<SttPlan> {
     bin,
     model,
     tier,
+    ...(vad ? { vad } : {}),
     threads,
     byokRecommended: false,
     byokProviders: BYOK_STT_PROVIDERS,

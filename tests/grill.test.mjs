@@ -158,3 +158,58 @@ test("latestTranscript returns null when there is nothing usable", () => {
   assert.equal(latestTranscript(""), null);
   assert.equal(latestTranscript("\n\n"), null);
 });
+
+// ── finalizeConfirmed + round draft: unanswered question slots are dropped ───
+// (issue #6 — slot phrasing must never leak into the injected prompt; the
+// round draft carries the provenance the round-tripped XML lost.)
+
+const SLOT_ROUND = {
+  sections: [
+    {
+      name: "objective",
+      attrs: { mode: "?" },
+      segments: [
+        { text: "make the popup relaunchable. ", source: "said" },
+        { text: "implement directly or propose only — decided by q1", source: "question", questionId: "q1" },
+      ],
+    },
+  ],
+  questions: [{ id: "q1", tag: "Implement vs. advise", text: "Implement it directly?" }],
+};
+
+test("finalizeConfirmed drops unanswered slot text when given the round draft", () => {
+  const confirmed = `<task><objective>make the popup relaunchable. implement directly or propose only — decided by q1</objective></task>`;
+  const r = finalizeConfirmed(confirmed, SLOT_ROUND);
+  assert.equal(r.ok, true);
+  assert.ok(!r.xml.includes("decided by q1"), r.xml);
+  assert.match(r.xml, /make the popup relaunchable\./);
+});
+
+test("finalizeConfirmed keeps a hand-edited slot (no longer matches the published text)", () => {
+  const confirmed = `<task><objective>make the popup relaunchable. implement it directly</objective></task>`;
+  const r = finalizeConfirmed(confirmed, SLOT_ROUND);
+  assert.equal(r.ok, true);
+  assert.match(r.xml, /implement it directly/);
+});
+
+test("finalizeConfirmed drops a section that was nothing but a slot", () => {
+  const round = {
+    sections: [
+      { name: "context", segments: [{ text: "real content", source: "said" }] },
+      { name: "success_criteria", segments: [{ text: "how do we know it worked? — q2", source: "question", questionId: "q2" }] },
+    ],
+    questions: [{ id: "q2", tag: "Success", text: "How do we know?" }],
+  };
+  const confirmed = `<task><context>real content</context><success_criteria>how do we know it worked? — q2</success_criteria></task>`;
+  const r = finalizeConfirmed(confirmed, round);
+  assert.equal(r.ok, true);
+  assert.ok(!r.xml.includes("success_criteria"), r.xml);
+  assert.match(r.xml, /real content/);
+});
+
+test("finalizeConfirmed without a round draft behaves as before", () => {
+  const confirmed = `<task><context>plain words</context></task>`;
+  const r = finalizeConfirmed(confirmed);
+  assert.equal(r.ok, true);
+  assert.match(r.xml, /plain words/);
+});

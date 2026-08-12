@@ -21,6 +21,8 @@ import {
   assertInjectable,
   generateXml,
   parseXml,
+  stripQuestionSlots,
+  draftShapeProblems,
 } from "../helper/dist/xml.js";
 
 // ── builders ────────────────────────────────────────────────────────────────
@@ -286,4 +288,65 @@ test("parsed (reordered) XML stays injectable after generate normalizes order", 
   );
   const xml = generateXml(draft, { injectionReady: true });
   assert.ok(xml.indexOf("<references>") < xml.indexOf("<objective"));
+});
+
+// ── draftShapeProblems (issue #10: LLM-written draft.json can be malformed) ──
+
+test("draftShapeProblems accepts a well-formed draft", () => {
+  const ok = {
+    sections: [{ name: "context", segments: [{ text: "hi", source: "said" }] }],
+    questions: [{ id: "q1", tag: "t", text: "q?" }],
+  };
+  assert.deepEqual(draftShapeProblems(ok), []);
+});
+
+test("draftShapeProblems points at the section and segment that are broken", () => {
+  const bad = {
+    sections: [
+      { name: "context", segments: [{ text: "fine", source: "said" }] },
+      { name: "objective", segments: [{ source: "said" }] },
+    ],
+  };
+  const problems = draftShapeProblems(bad);
+  assert.equal(problems.length, 1);
+  assert.match(problems[0], /sections\[1\]/);
+  assert.match(problems[0], /<objective>/);
+  assert.match(problems[0], /segments\[0\]\.text/);
+});
+
+test("draftShapeProblems reports missing sections and non-object drafts", () => {
+  assert.match(draftShapeProblems({})[0], /sections is missing/);
+  assert.match(draftShapeProblems("nope")[0], /not an object/);
+  assert.match(draftShapeProblems({ sections: [], questions: [{}] })[0], /questions\[0\]\.text/);
+});
+
+// ── stripQuestionSlots ───────────────────────────────────────────────────────
+
+test("stripQuestionSlots removes slot text from any section it leaked into", () => {
+  const round = {
+    sections: [{ name: "context", segments: [{ text: "SLOT-TEXT", source: "question", questionId: "q1" }] }],
+    questions: [],
+  };
+  const confirmed = {
+    sections: [{ name: "context", segments: [{ text: "keep this SLOT-TEXT and this", source: "said" }] }],
+    questions: [],
+  };
+  const out = stripQuestionSlots(confirmed, round);
+  assert.equal(out.sections[0].segments[0].text, "keep this  and this");
+});
+
+test("stripQuestionSlots also collects slots from the enhanced variant", () => {
+  const round = {
+    sections: [],
+    enhanced: [{ name: "steps", segments: [{ text: "ENH-SLOT", source: "question", questionId: "q9" }] }],
+    questions: [],
+  };
+  const confirmed = { sections: [{ name: "steps", segments: [{ text: "a ENH-SLOT b", source: "said" }] }], questions: [] };
+  assert.equal(stripQuestionSlots(confirmed, round).sections[0].segments[0].text, "a  b");
+});
+
+test("stripQuestionSlots is a no-op when the round had no slots", () => {
+  const round = { sections: [{ name: "context", segments: [{ text: "said only", source: "said" }] }], questions: [] };
+  const confirmed = { sections: [{ name: "context", segments: [{ text: "anything", source: "said" }] }], questions: [] };
+  assert.equal(stripQuestionSlots(confirmed, round), confirmed);
 });

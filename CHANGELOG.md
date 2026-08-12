@@ -6,6 +6,48 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.3.0] — 2026-08-12
+
+macOS-validation hardening: everything from the first external QA round
+(issues #3–#10, PRs #2/#11 by @sjh9714 — thank you).
+
+### Added
+- **Voice-activity detection** (#7): the bootstrap now also fetches the small
+  (~1 MB) silero VAD model and whisper runs with `--vad`, which stops the
+  quiet tail after speech from hallucinating a sentence nobody spoke. If the
+  installed whisper binary predates `--vad`, transcription retries without it.
+  `STP_VAD=0` opts out; `STP_VAD_MODEL` points at your own copy.
+- **Transcription language selector** (#3): a footer picker (auto · 한국어 ·
+  English) pins whisper's per-recording language when auto-detect drops a
+  passage of a mixed-language recording; `STP_LANG` sets the launch default.
+- `STP_KEEP_AUDIO=1` keeps each capture in the run directory for diagnosis
+  (PR #2); a `qa-macos/` reproduction set (fixtures + bench) is checked in
+  (PR #11).
+
+### Fixed
+- **Unanswered grill questions can no longer leak into the injected prompt**
+  (#6): confirm always proceeds, and question-slot phrasing that survived into
+  the confirmed XML is stripped mechanically at finalize time — an unanswered
+  question is discarded, never injected as instructions. Hand-edited slots are
+  kept (user edits are law).
+- **The popup's sample content can no longer be confirmed as a real prompt**
+  (#8): samples are cleared at boot and Confirm stays disabled until the agent
+  publishes a real round.
+- **The prewarmed mic is released after ~30 s without a Record press** (#9):
+  the popup no longer holds the microphone (and the OS recording indicator)
+  for as long as it sits open; the next press just reacquires.
+- **A machine with no speech engine now says so before you record** (#4): the
+  popup disables Record and shows the actionable fix (macOS:
+  `brew install whisper-cpp`) instead of failing after Stop with everything
+  already said. macOS launcher port-takeover fixed for BSD tools (PR #2).
+- **Docs match reality on macOS** (#5): README requires brew there, the
+  Gatekeeper note is gone, BYOK is described as planned (README · skill ·
+  SessionStart hook), and architecture.md's dependency count is corrected.
+- Small cleanups (#10): thread recommendation no longer assumes SMT on arm64
+  (Apple Silicon), model-download progress events are throttled to whole
+  percents, and a malformed draft.json now reports which section/segment is
+  broken instead of a bare TypeError.
+
 ## [0.2.10] — 2026-08-11
 
 ### Added

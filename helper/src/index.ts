@@ -15,11 +15,28 @@ const webDir = join(dirname(fileURLToPath(import.meta.url)), "..", "web");
 
 // Map the bootstrap's progress events to the popup's `bootstrap` SSE shape
 // ({ phase, pct? }) and mirror them to stdout for the launcher's logs.
+// Download progress fires per HTTP chunk — thousands of events for a model-sized
+// file — so throttle it to whole-percent changes (and at most ~5/s while the
+// total is unknown); phase changes and completion always pass through.
+let lastDownloadPct = -1;
+let lastDownloadAt = 0;
 function emitBootstrap(p: BootstrapProgress): void {
+  if (p.kind === "download") {
+    const pct = p.total ? Math.round((p.received / p.total) * 100) : undefined;
+    const done = p.total > 0 && p.received >= p.total;
+    if (!done) {
+      const now = Date.now();
+      if (pct === undefined ? now - lastDownloadAt < 200 : pct === lastDownloadPct) return;
+      lastDownloadAt = now;
+      lastDownloadPct = pct ?? -1;
+    }
+    console.log(`STP_BOOTSTRAP ${JSON.stringify(p)}`);
+    session?.hub.broadcast("bootstrap", { phase: p.kind, pct });
+    return;
+  }
+  lastDownloadPct = -1; // a new phase → the next download reports from scratch
   console.log(`STP_BOOTSTRAP ${JSON.stringify(p)}`);
-  const pct =
-    p.kind === "download" && p.total ? Math.round((p.received / p.total) * 100) : undefined;
-  session?.hub.broadcast("bootstrap", { phase: p.kind, pct });
+  session?.hub.broadcast("bootstrap", { phase: p.kind, pct: undefined });
 }
 
 // The STT plan is resolved lazily on the first /transcribe (ensureSttReady is

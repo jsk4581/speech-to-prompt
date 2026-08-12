@@ -6,7 +6,7 @@
 # data without an explicit action would be a surprise. So the hook only *probes*
 # and, on a fresh machine, prints a one-line heads-up. The actual binary/model
 # download + tier selection runs in the helper when you invoke /stp:voice, where
-# the popup can show progress and offer BYOK cloud STT as an alternative.
+# the popup can show progress.
 #
 # Always exits 0 so installing the plugin never blocks or fails a session.
 
@@ -23,5 +23,9 @@ if ls "$models_dir"/ggml-*.bin >/dev/null 2>&1; then
   exit 0
 fi
 
-echo "STP: speech model not installed yet — it downloads automatically the first time you run /stp:voice (or pick BYOK cloud STT in the popup to skip the download)."
+if [ "$(uname -s)" = "Darwin" ]; then
+  echo "STP: speech engine not installed yet — macOS needs \`brew install whisper-cpp\` once; the model then downloads automatically the first time you run /stp:voice."
+else
+  echo "STP: speech model not installed yet — it downloads automatically the first time you run /stp:voice."
+fi
 exit 0

@@ -21,7 +21,7 @@ existing Claude Code session already makes.
 - **`skills/voice/SKILL.md`** — the runbook the agent follows: start the
   helper, wait for the transcript, spawn the drafting subagent, drive the
   question loop, inject the confirmed XML.
-- **`helper/`** (Node/TypeScript, 3 runtime deps):
+- **`helper/`** (Node/TypeScript, zero runtime dependencies — Node std lib only):
   - `server.ts` — the 127.0.0.1 HTTP server: popup assets, SSE events to the
     popup, long-poll bridge to the agent, auth.
   - `audio.ts` / `spike-whisper.ts` — WebM → 16 kHz mono WAV, whisper.cpp

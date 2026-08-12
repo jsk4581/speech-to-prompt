@@ -34,6 +34,7 @@ const els = {
   settingsBtn: $("#settings-btn"),
   enhanceToggle: $("#enhance-toggle"),
   grillToggle: $("#grill-toggle"),
+  langSelect: $("#lang-select"),
   tabs: $("#xml-tabs"),
   xmlHint: $("#xml-hint"),
   drafting: $("#drafting"),
@@ -56,6 +57,8 @@ const state = {
   stale: false,
   /** grill work requested but not yet delivered by a round (spinner stays up) */
   pendingGrill: false,
+  /** true while the helper reports no usable speech engine (Record disabled) */
+  sttBlocked: false,
 };
 
 // ── helpers ──────────────────────────────────────────────────────────────────
@@ -128,9 +131,12 @@ function connectEvents() {
       }
       state.runId = data.run;
     }
-    if (state.stale) return;
-    setStage(data.whisper === "absent" ? "capture · (no model yet)" : "capture");
+    applySttStatus(data);
   });
+  // Speech-engine status settles after startup (the bootstrap runs in the
+  // background); "unavailable" carries the actionable fix, shown BEFORE the
+  // user records into an engine that isn't there.
+  es.addEventListener("stt", (e) => applySttStatus(safeJson(e.data)));
   es.addEventListener("transcript", (e) => {
     const data = safeJson(e.data);
     if (data.text != null) {
@@ -160,6 +166,7 @@ function connectEvents() {
   // download · extract · select · error).
   es.addEventListener("bootstrap", (e) => {
     const p = safeJson(e.data);
+    if (state.sttBlocked) return; // the `stt` status ("no speech engine") wins
     if (p.phase === "select" || p.phase === "done") {
       setStage("capture");
       return;
@@ -175,6 +182,33 @@ function safeJson(s) {
     return JSON.parse(s);
   } catch {
     return {};
+  }
+}
+
+/**
+ * Reflect the helper's speech-engine status (SSE `ready` / `stt`).
+ * "unavailable" disables Record and puts the fix (e.g. the brew install line
+ * on macOS) where the transcript would appear — recording into a machine with
+ * no engine would only fail after the user has said everything.
+ */
+function applySttStatus(data) {
+  if (state.stale || !data.whisper) return;
+  if (data.language && els.langSelect) els.langSelect.value = data.language;
+  if (data.whisper === "ready") {
+    if (els.recordBtn) els.recordBtn.disabled = false;
+    if (state.sttBlocked && !state.activeRound) {
+      renderTranscript("Press Record and talk through what you want built.");
+    }
+    state.sttBlocked = false;
+    setStage("capture");
+  } else if (data.whisper === "unavailable") {
+    state.sttBlocked = true;
+    if (els.recordBtn) els.recordBtn.disabled = true;
+    setStage("no speech engine");
+    if (!state.activeRound) renderTranscript(`⚠ ${data.reason || "No speech engine available."}`);
+  } else {
+    // "preparing" — the bootstrap is still resolving/downloading.
+    setStage("capture · preparing speech engine…");
   }
 }
 
@@ -276,11 +310,15 @@ function hideDrafting() {
   if (els.draftingQ) els.draftingQ.hidden = true;
 }
 
-/** First Record press: wipe the sample content the static View ships with. */
+/**
+ * Wipe the sample content the static View ships with. Runs at boot — the
+ * samples exist for the static page/screenshots only, and were confirmable as
+ * if the user had said them (they hadn't) when left in place until Record.
+ */
 function clearSamples() {
   if (state.samplesCleared) return;
   state.samplesCleared = true;
-  renderTranscript("(listening…)");
+  renderTranscript("Press Record and talk through what you want built.");
   renderXml("<!-- your draft appears here after you stop recording -->");
   if (els.questions) els.questions.replaceChildren();
   if (els.qcount) els.qcount.textContent = "0";
@@ -433,6 +471,7 @@ async function toggleRecord() {
     if (!state.recorder.recording) {
       await state.recorder.start();
       clearSamples();
+      renderTranscript("(listening…)");
       btn.classList.add("on");
       btn.setAttribute("aria-pressed", "true");
       if (els.recordLabel) els.recordLabel.textContent = "Stop";
@@ -560,6 +599,8 @@ function cancelSession() {
 }
 
 function confirmAndInject() {
+  // No round yet = nothing the user produced — never confirm placeholder text.
+  if (!state.activeRound) return;
   const xml = els.xml.textContent ?? "";
   // Delivery ≠ acceptance: the agent validates the confirmed XML and may reject
   // it. Only say what we know — "sent" — the success/rejection notice arrives
@@ -618,6 +659,13 @@ function wireEvents() {
   els.grillToggle?.addEventListener("change", () =>
     pushSettings({ grill: els.grillToggle.checked ? "on" : "off" }),
   );
+  // Transcription language: applies to the next recording (no redraft), so it
+  // posts directly instead of going through pushSettings' redraft spinner.
+  els.langSelect?.addEventListener("change", () =>
+    postJson("/mode", { lang: els.langSelect.value }).catch(() =>
+      setStage("language change failed"),
+    ),
+  );
 
   // Deliberate cancel = the Cancel button only. Popup closure is detected by
   // the helper via SSE disconnect + grace (popup_closed). A pagehide /cancel
@@ -630,6 +678,11 @@ function wireEvents() {
 
 async function main() {
   wireEvents();
+  // The static samples are showcase-only; live pages never show them — and
+  // Confirm stays off until the agent publishes a real round (renderRound
+  // re-enables it), so the sample XML can never be confirmed as the prompt.
+  clearSamples();
+  if (els.confirmBtn) els.confirmBtn.disabled = true;
   if (els.recordLabel) els.recordLabel.textContent = "Record";
   setStage("connecting…");
   const token = takeLaunchToken();

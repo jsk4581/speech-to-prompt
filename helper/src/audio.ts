@@ -28,6 +28,14 @@ export interface TranscribeOptions extends WhisperPaths {
   /** Worker threads; defaults to whisper.cpp's own default. */
   threads?: number;
   /**
+   * Path to a silero VAD model (.bin). When set, whisper runs with `--vad`,
+   * which trims non-speech audio before decoding. This kills the
+   * quiet-tail hallucination — a recording whose last 30s window holds only
+   * noise floor (the natural talk-then-reach-for-Stop gap) otherwise grows a
+   * sentence nobody spoke (issue #7). Default thresholds; no tuning needed.
+   */
+  vadModel?: string;
+  /**
    * Progress sink (0–100), called as whisper transcribes. When set, whisper is
    * run with --print-progress and its stderr progress lines are parsed. Long
    * recordings span many 30s windows, so this advances smoothly; a short clip
@@ -83,6 +91,7 @@ export function transcribe(opts: TranscribeOptions): Promise<TranscribeResult> {
   ];
   if (opts.onProgress) args.push("-pp"); // print progress to stderr → the UI bar
   if (opts.threads) args.push("-t", String(opts.threads));
+  if (opts.vadModel) args.push("--vad", "--vad-model", opts.vadModel);
 
   return new Promise((resolve, reject) => {
     const started = process.hrtime.bigint();

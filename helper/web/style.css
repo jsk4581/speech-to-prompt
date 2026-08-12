@@ -111,6 +111,13 @@ body{font-family:var(--ui);color:var(--text-1);letter-spacing:-.01em;
 @media (prefers-reduced-motion:reduce){.switch,.switch .swlabel,.switch .knob{transition:none}}
 .actions .sep{width:1px;height:22px;background:var(--border-2);margin:0 5px}
 
+/* Transcription-language picker (footer): auto / 한국어 / English. Styled to sit
+   with the setting pills. Whisper fixes one language per file, so mixed-language
+   speakers can pin it here instead of trusting auto-detect. */
+.langsel{height:28px;padding:0 8px;border-radius:14px;border:1px solid var(--border-2);
+  background:var(--surface-2);color:var(--text-2);font:600 11px var(--font,inherit);cursor:pointer}
+.langsel:focus-visible{outline:1px solid var(--accent);outline-offset:1px}
+
 /* XML pane tabs (Default | Enhanced) — a segmented control, shown only when an
    enhanced draft exists. The selected segment fills with the accent color. */
 .tabs{display:inline-flex;gap:0;margin-left:8px;padding:2px;border-radius:7px;

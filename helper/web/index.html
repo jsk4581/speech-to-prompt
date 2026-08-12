@@ -84,7 +84,7 @@
         <div class="qbox" data-q="1">
           <div class="qtop"><span class="qmark">?</span><span class="qnum">Q1</span><span class="qtag">Implement vs. advise</span></div>
           <div class="qtext">Should STP implement the Google OAuth directly, or just propose the approach?</div>
-          <div class="chips"><button class="chip sel" data-action="chip" type="button" aria-pressed="true">Implement it</button><button class="chip" data-action="chip" type="button" aria-pressed="false">Just advise</button></div>
+          <div class="chips"><button class="chip" data-action="chip" type="button" aria-pressed="false">Implement it</button><button class="chip" data-action="chip" type="button" aria-pressed="false">Just advise</button></div>
           <textarea class="ans" data-role="answer" rows="1" placeholder="or answer directly…"></textarea>
         </div>
         <div class="qbox" data-q="2">
@@ -117,8 +117,15 @@
         <input type="checkbox" id="grill-toggle" aria-label="Grill" />
         <span class="swlabel">Grill</span><span class="knob"></span>
       </label>
+      <select class="langsel" id="lang-select" aria-label="Transcription language"
+              title="Whisper transcribes one language per recording — pin it if auto-detect drops a mixed passage">
+        <option value="auto" selected>Lang: auto</option>
+        <option value="ko">한국어</option>
+        <option value="en">English</option>
+      </select>
       <span class="sep"></span>
-      <button class="btn primary" id="confirm-btn" data-action="confirm" type="button">Confirm · inject into session →</button>
+      <!-- disabled until the agent publishes a real round (app.js re-enables) -->
+      <button class="btn primary" id="confirm-btn" data-action="confirm" type="button" disabled>Confirm · inject into session →</button>
       <button class="btn ghost" id="cancel-btn" data-action="cancel" type="button">Cancel</button>
       <span class="action-note" id="action-note" hidden></span>
     </div>

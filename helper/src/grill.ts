@@ -30,6 +30,8 @@ import { argv } from "node:process";
 import {
   generateXml,
   parseXml,
+  stripQuestionSlots,
+  draftShapeProblems,
   type GrillDraft,
 } from "./xml.js";
 
@@ -104,11 +106,16 @@ export function roundPayload(draft: GrillDraft, stage?: string): RoundPayload {
 /**
  * Validate + normalize the XML the user confirmed in the popup. The text may have
  * been hand-edited, so it is re-parsed, checked against the injection invariants,
- * and re-emitted in canonical form (section order, escaping). Returns the clean
- * XML or the specific reason it is not ready — the caller never injects on failure.
+ * and re-emitted in canonical form (section order, escaping). When the round's
+ * draft is supplied, question-slot phrasing that survived into the confirmed
+ * document is dropped first (unanswered questions are discarded, never injected
+ * as instructions — issue #6; hand-edited slots no longer match and are kept).
+ * Returns the clean XML or the specific reason it is not ready — the caller
+ * never injects on failure.
  */
 export function finalizeConfirmed(
   xml: string,
+  roundDraft?: GrillDraft,
 ): { ok: true; xml: string } | { ok: false; problem: string } {
   let draft: GrillDraft;
   try {
@@ -116,6 +123,7 @@ export function finalizeConfirmed(
   } catch (e) {
     return { ok: false, problem: e instanceof Error ? e.message : String(e) };
   }
+  if (roundDraft) draft = stripQuestionSlots(draft, roundDraft);
   try {
     return { ok: true, xml: generateXml(draft, { injectionReady: true }) };
   } catch (e) {
@@ -178,9 +186,30 @@ function conn(): Conn {
   return { port, token };
 }
 
+function runDir(): string {
+  return process.env.STP_TRANSCRIPT_DIR ?? join(tmpdir(), "stp");
+}
+
 function transcriptFile(): string {
-  const dir = process.env.STP_TRANSCRIPT_DIR ?? join(tmpdir(), "stp");
-  return join(dir, "transcript.jsonl");
+  return join(runDir(), "transcript.jsonl");
+}
+
+/**
+ * The draft behind the currently-published round, stashed by cmdRound so a
+ * later confirm (possibly picked up by a bare `poll`) can strip leftover
+ * question-slot text. Provenance lives only in this JSON — the round-tripped
+ * XML has lost it.
+ */
+function roundDraftStash(): string {
+  return join(runDir(), "round-draft.json");
+}
+
+async function readRoundDraft(): Promise<GrillDraft | undefined> {
+  try {
+    return JSON.parse(await readFile(roundDraftStash(), "utf8")) as GrillDraft;
+  } catch {
+    return undefined; // no stash (or unreadable) — finalize without stripping
+  }
 }
 
 /** One loopback HTTP request with a Bearer token and an optional client timeout. */
@@ -274,7 +303,7 @@ async function pollLoop(c: Conn, capS: number): Promise<RawOutcome> {
 async function handleOutcome(out: RawOutcome, finalOut: string | undefined): Promise<Outcome> {
   if (out.status !== "confirmed") return out;
   const raw = typeof out.xml === "string" ? out.xml : "";
-  const fin = finalizeConfirmed(raw);
+  const fin = finalizeConfirmed(raw, await readRoundDraft());
   if (!fin.ok) return { status: "confirmed", ok: false, problem: fin.problem };
   const dest = finalOut ?? join(process.env.STP_TRANSCRIPT_DIR ?? tmpdir(), "final.xml");
   await writeFile(dest, fin.xml, "utf8");
@@ -348,7 +377,20 @@ async function cmdRound(): Promise<void> {
   const c = conn();
   const draftPath = flag("draft");
   if (!draftPath) throw new Error("round: --draft <GrillDraft json> is required");
-  const draft = JSON.parse(await readFile(draftPath, "utf8")) as GrillDraft;
+  const raw = await readFile(draftPath, "utf8");
+  let draft: GrillDraft;
+  try {
+    draft = JSON.parse(raw) as GrillDraft;
+  } catch (e) {
+    throw new Error(`round: ${draftPath} is not valid JSON: ${e instanceof Error ? e.message : e}`);
+  }
+  // The draft is an LLM-written artifact — point at what is malformed instead of
+  // letting the generator die on a bare TypeError deep inside rendering.
+  const shape = draftShapeProblems(draft);
+  if (shape.length > 0) throw new Error(`round: ${draftPath} is malformed — ${shape.join("; ")}`);
+  // Stash the round's draft so the eventual confirm (even via a bare `poll`)
+  // can strip unanswered question-slot text from the confirmed document.
+  await writeFile(roundDraftStash(), raw, "utf8").catch(() => {});
   const payload = roundPayload(draft, flag("stage"));
   try {
     const latest = latestTranscript(await readFile(transcriptFile(), "utf8"));

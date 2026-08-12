@@ -43,8 +43,8 @@ fifteen corrections you owe your agent after reviewing its work.
 ## Principles
 
 - **Local-first & zero-infra** — local Whisper STT; your existing Claude Code
-  session is the brain. No accounts, no servers, **zero telemetry**. Optional BYOK
-  (Anthropic / OpenAI / ElevenLabs) for those who want it.
+  session is the brain. No accounts, no servers, **zero telemetry**. Optional
+  BYOK (Anthropic / OpenAI / ElevenLabs) is planned, not shipped yet.
 - **Voice-first, always editable** — a local web popup captures speech and lets
   you review/edit/confirm before anything is injected.
 - **Cross-platform & vendor-neutral.**
@@ -63,7 +63,9 @@ Inside Claude Code:
 then `claude plugin install stp@jsk4581`.)
 
 **Requirements:** [Claude Code](https://claude.com/claude-code) and Node.js ≥ 18
-(with npm).
+(with npm). **On macOS also** `brew install whisper-cpp` — whisper.cpp publishes
+no prebuilt macOS CLI, so STP uses the Homebrew one (the popup reminds you if
+it's missing).
 
 Then run `/stp:voice` in any session. The first run builds the small local
 helper and downloads a Whisper model (~75 MB–0.9 GB depending on the recommended
@@ -93,18 +95,26 @@ A microphone tool should be explicit about its footprint:
 
 - **Microphone** — captured by *your browser* (getUserMedia) in the local popup;
   the browser owns the permission prompt. The helper process never opens the
-  mic itself.
+  mic itself. The popup pre-opens the mic on load so your first word isn't
+  clipped, and releases it after ~30 s without a Record press (your OS's
+  recording indicator reflects this); it is fully released when you close the
+  tab or stop recording.
 - **Network** — first run only: downloads a prebuilt
   [whisper.cpp](https://github.com/ggerganov/whisper.cpp/releases) CLI from its
-  official GitHub releases and a Whisper model from the official
+  official GitHub releases (Linux/Windows; on macOS the Homebrew install is
+  used instead), a Whisper model from the official
   [`ggerganov/whisper.cpp`](https://huggingface.co/ggerganov/whisper.cpp)
-  HuggingFace repo, into Claude Code's plugin data directory. After that, STP
-  runs fully offline. **Zero telemetry — nothing ever phones home.** BYOK
-  providers make network calls only if you configure a key.
+  HuggingFace repo, and a small (~1 MB) voice-activity-detection model from
+  [`ggml-org/whisper-vad`](https://huggingface.co/ggml-org/whisper-vad) that
+  keeps trailing silence from hallucinating text — all into Claude Code's
+  plugin data directory. After that, STP runs fully offline. **Zero telemetry
+  — nothing ever phones home.**
 - **Local server** — binds `127.0.0.1` only, authenticated with a per-run
   token; no other local process can read your transcript or inject a prompt.
-- **macOS note** — the downloaded whisper binary is unsigned, so Gatekeeper may
-  prompt on first run; allowing it is expected.
+- **Language** — transcription auto-detects by default. Whisper transcribes
+  one language per recording, so if you mix languages heavily and a passage
+  drops out, pin the language with the popup's footer selector (`STP_LANG`
+  sets the launch default: `auto`/`ko`/`en`).
 
 ## License
 
