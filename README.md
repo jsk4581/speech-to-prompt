@@ -13,7 +13,10 @@ to produce a single, confirmed, structured XML prompt for your coding agent —
 instead of pasting raw, rambling dictation. That goes for new tasks and for the
 fifteen corrections you owe your agent after reviewing its work.
 
-![STP demo: speak → local transcription → repo-grounded XML draft → grill questions → confirm → one XML injected](docs/demo.gif)
+<!-- Media lives on the v0.3.0 release, not in the tree: plugin installs copy
+     the whole repo, and 6MB of README media doesn't belong in every install.
+     To update: rebuild, then `gh release upload v0.3.0 <file> --clobber`. -->
+![STP demo: speak → local transcription → repo-grounded XML draft → grill questions → confirm → one XML injected](https://github.com/jsk4581/speech-to-prompt/releases/download/v0.3.0/demo.gif)
 
 ## When to reach for it
 
@@ -73,7 +76,7 @@ tier for your machine) — after that, everything is local and offline-capable.
 
 ## Use
 
-![The STP popup: what you said · the XML to inject · STP's questions](docs/popup.png)
+![The STP popup: what you said · the XML to inject · STP's questions](https://github.com/jsk4581/speech-to-prompt/releases/download/v0.3.0/popup.png)
 
 1. `/stp:voice` — a local popup opens (127.0.0.1 only, per-run token).
 2. Hit record and talk through what you want built (any length; stop when done).

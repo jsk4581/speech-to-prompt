@@ -57,3 +57,7 @@ demo/
 
 # QA reproduction set (kept local — dev asset; plugin installs copy the whole repo)
 qa-macos/
+
+# README media (served from the GitHub release, not the tree — installs copy the repo)
+docs/demo.gif
+docs/popup.png
